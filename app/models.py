@@ -23,7 +23,7 @@ def load_user(id):
 
 class User(UserMixin, db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(Text, nullable=False)
+    name = Column(Text, nullable=False, default='')
     email = Column(Text, nullable=False, unique=True)
     sex = Column(Text)
     birthday = Column(Text)
