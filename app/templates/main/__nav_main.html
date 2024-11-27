@@ -1,0 +1,18 @@
+<nav id="header-nav">
+    <div id="nav-logo">
+        <img id="assistant-avatar" src="{{ url_for('static', filename='images/naita.webp') }}" alt="Assistant Avatar">
+        <p>НАЙТА</p>
+    </div>
+    <div id="nav-menu">
+        {% if not current_user.is_authenticated %}
+            {% include 'main/__vk_id.html' %}
+        {% else %}
+            <div id="user-info">
+                <img src="{{ current_user.vk_avatar }}" width="50" height="50" style="border-radius: 50%" alt="User avatar">
+                <p style="margin: 0">Привет, {{ current_user.name }}!</p>
+                <a class="btn btn-secondary" onclick="logout();">Выйти</a>
+            </div>
+        {% endif %}
+    </div>
+
+</nav>

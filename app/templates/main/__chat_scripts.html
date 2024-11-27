@@ -1,0 +1,227 @@
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+
+
+
+<script>
+    const socket=io('/chat')
+    const chatContainer = document.getElementById('chat-container');
+    const messagesContainer = document.getElementById('messages');
+    const inputMessage = document.getElementById('input-message');
+    const sendBtn = document.getElementById('send-btn');
+    const fileBtn = document.getElementById('file-btn');
+    const fileInput = document.getElementById('file-input');
+    const filePreview = document.getElementById('file-preview');
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+    const assistantTyping = document.getElementById('assistant-typing');
+    let currentCallback = ''
+    let userEmail = ''
+
+    const md = markdownit({
+        html: true,
+        linkify: true,
+        typographer: true,
+    })
+    {#md.use(window.markdownitSynapseTable);#}
+
+    //https://www.npmjs.com/package/markdown-it-synapse-table
+
+    let fileToSend = null;
+
+    socket.on('connect', () => {
+        console.log('Connected to the server');
+        $(inputMessage).removeAttr('disabled');
+        loadMessages();
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Disconnected...');
+        $(inputMessage).prop('disabled', true);
+    });
+
+    socket.on('response', (event) => {
+
+        assistantTyping.style.display = 'none';
+        if (event.type === 'text') {
+            appendMessage(event.message, 'incoming');
+        } else if (event.type === 'file') {
+            appendMessageWithFile({ name: event.fileName, type: event.contentType || 'application/octet-stream', data: event.content }, event.comment, 'incoming');
+        }
+
+        currentCallback = event.callback;
+        userEmail = event.email
+    });
+
+    socket.on('reload', (event) => {
+        {#window.location.reload();#}
+        window.location.href = "/";
+    });
+
+    socket.on('typing', (event) => {
+        assistantTyping.innerText = 'печатает...';
+        assistantTyping.style.display = 'block';
+    });
+
+    socket.on('analytics', (event) => {
+        assistantTyping.innerText = 'анализирует профиль...'
+        assistantTyping.style.display = 'block';
+    });
+
+    async function loadMessages() {
+        const response = await fetch('messages', {method: 'GET'});
+        const messages = await response.json();
+        messages.forEach(message => {
+            if (message.message_type === 'text') {
+                appendMessage(message.text, message.sender_id ? 'outgoing' : 'incoming');
+            } else if (message.type === 'file') {
+                appendMessageWithFile({ name: message.fileName, type: message.contentType || 'application/octet-stream', data: message.content }, message.comment, 'incoming');
+            }
+        });
+    }
+
+    // Отправка текстового сообщения
+    function sendMessage() {
+        const message = inputMessage.value.trim();
+        if (message !== '' || fileToSend) {
+            if (fileToSend) {
+                appendMessageWithFile(fileToSend, message, 'outgoing');
+                socket.send({ type: 'file', content: fileToSend.data, fileName: fileToSend.name, comment: message });
+                fileToSend = null;
+                filePreview.textContent = '';
+            } else {
+                appendMessage(message, 'outgoing');
+                socket.send({ type: 'text', content: message , callback: currentCallback, email: userEmail});
+            }
+            inputMessage.value = '';
+        }
+    }
+    sendBtn.addEventListener('click', sendMessage);
+    inputMessage.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // Отправка файла
+    fileBtn.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                fileToSend = {
+                    name: file.name,
+                    data: reader.result,
+                    type: file.type || 'application/octet-stream'
+                };
+                filePreview.textContent = `${file.name}`;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Функция добавления сообщения в интерфейс чата
+    function appendMessage(content, type) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', type);
+        if (type === 'incoming') {
+            const avatar = document.createElement('img');
+            avatar.src = "{{ url_for('static', filename='images/naita.webp') }}";
+            avatar.alt = "Assistant Avatar";
+            avatar.classList.add('chat-avatar');
+            messageElement.appendChild(avatar);
+        } else {
+            const avatar = document.createElement('img');
+            avatar.src = "{% if current_user.is_authenticated %}{{ url_for('static', filename='users/'+current_user.id|string+'/avatar.jpg') }}{% endif %}";
+            avatar.alt = "User Avatar";
+            avatar.classList.add('chat-avatar');
+            messageElement.appendChild(avatar);
+        }
+        const textElement = document.createElement('pre');
+        {#textElement.innerHTML = marked.parse(content);#}
+
+        textElement.innerHTML = md.render(content);
+
+        messageElement.appendChild(textElement);
+        messagesContainer.appendChild(messageElement);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Функция добавления сообщения с файлом в интерфейс чата
+    function appendMessageWithFile(file, comment, type) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', type);
+        if (type === 'incoming') {
+            const avatar = document.createElement('img');
+            avatar.src = "{{ url_for('static', filename='images/naita.webp') }}";
+            avatar.alt = "Assistant Avatar";
+            avatar.classList.add('chat-avatar');
+            messageElement.appendChild(avatar);
+        } else {
+            const avatar = document.createElement('img');
+            avatar.src = "{% if current_user.is_authenticated %}{{ url_for('static', filename='users/'+current_user.id|string+'/avatar.jpg') }}{% endif %}";
+            avatar.alt = "User Avatar";
+            avatar.classList.add('chat-avatar');
+            messageElement.appendChild(avatar);
+        }
+        const textElement = document.createElement('pre');
+        textElement.innerHTML = marked.parse(comment);
+        messageElement.appendChild(textElement);
+        messagesContainer.appendChild(messageElement);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        // Добавление предпросмотра файла в зависимости от его типа
+        let filePreviewElement;
+        if (file.type.startsWith('image/')) {
+            filePreviewElement = document.createElement('img');
+            filePreviewElement.src = file.data;
+            filePreviewElement.alt = file.name;
+            filePreviewElement.style.maxWidth = '200px';
+            filePreviewElement.style.borderRadius = '8px';
+        } else if (file.type.startsWith('audio/')) {
+            filePreviewElement = document.createElement('i');
+            filePreviewElement.classList.add('fas', 'fa-file-audio');
+            filePreviewElement.textContent = ` Файл: ${file.name}`;
+        } else if (file.type.startsWith('video/')) {
+            filePreviewElement = document.createElement('i');
+            filePreviewElement.classList.add('fas', 'fa-file-video');
+            filePreviewElement.textContent = ` Файл: ${file.name}`;
+        } else {
+            filePreviewElement = document.createElement('i');
+            filePreviewElement.classList.add('fas', 'fa-file');
+            filePreviewElement.textContent = ` Файл: ${file.name}`;
+        }
+
+        messageElement.appendChild(filePreviewElement);
+        messagesContainer.appendChild(messageElement);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Полноэкранный режим для чата
+    fullscreenBtn.addEventListener('click', () => {
+        if (chatContainer.style.position !== 'fixed') {
+            chatContainer.style.position = 'fixed';
+            chatContainer.style.top = '0';
+            chatContainer.style.left = '0';
+            chatContainer.style.width = '100%';
+            chatContainer.style.height = '100%';
+            chatContainer.style.borderRadius = '0';
+            fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+        } else {
+            chatContainer.style.position = 'relative';
+            chatContainer.style.width = '400px';
+            chatContainer.style.height = '600px';
+            chatContainer.style.borderRadius = '10px';
+            fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+        }
+    });
+
+    // Тестовый скрининг
+    function screenUser() {
+        socket.emit('processUser', { text: 'Ало' });
+    }
+</script>

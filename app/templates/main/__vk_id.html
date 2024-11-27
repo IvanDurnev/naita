@@ -1,0 +1,50 @@
+<div>
+    <script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js"></script>
+    <script type="text/javascript">
+        if ('VKIDSDK' in window) {
+            const VKID = window.VKIDSDK;
+
+            VKID.Config.init({
+                app: 52156583,
+                redirectUrl: 'https://itd.ru.tuna.am/vk_login',
+                responseMode: VKID.ConfigResponseMode.Callback,
+                source: VKID.ConfigSource.LOWCODE,
+                scope: 'vkid.personal_info email'
+
+            });
+
+            const oAuth = new VKID.OAuthList();
+
+            oAuth.render({
+                container: document.currentScript.parentElement,
+                oauthList: [
+                    'vkid',
+                    {#'ok_ru',#}
+                    {#'mail_ru'#}
+                ]
+            })
+                .on(VKID.WidgetEvents.ERROR, vkidOnError)
+                .on(VKID.OAuthListInternalEvents.LOGIN_SUCCESS, function (payload) {
+                    const code = payload.code;
+                    const deviceId = payload.device_id;
+
+                    VKID.Auth.exchangeCode(code, deviceId)
+                        .then(vkidOnSuccess)
+                        .catch(vkidOnError);
+                });
+
+            async function vkidOnSuccess(data) {
+                // Обработка полученного результата
+                let response = await fetch('/vk_login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)})
+
+                if (response.ok)
+                    location.reload();
+            }
+
+            function vkidOnError(error) {
+                // Обработка ошибки
+                console.log(error)
+            }
+        }
+  </script>
+</div>

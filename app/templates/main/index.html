@@ -1,0 +1,28 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+    {% include 'main/__nav_main.html' %}
+    <main class="container-fluid">
+        <div id="chat">
+            {% include 'main/__chat.html' %}
+        </div>
+    </main>
+    {% if current_user.is_authenticated %}
+        {% if current_user.profile_complete() %}
+            <a class="btn btn-success" onclick="screenUser();">Провести скрининг</a>
+        {% endif %}
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function logout() {
+        let response = await fetch('/logout')
+
+        if (response.ok) {
+            location.reload();
+        }
+    }
+</script>
+    {% include 'main/__chat_scripts.html' %}
+{% endblock %}

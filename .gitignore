@@ -1,0 +1,9 @@
+.DS_Store
+.env
+.idea/
+README.md
+__pycache__/
+venv/
+migrations/
+flask_session/
+static
