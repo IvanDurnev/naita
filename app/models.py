@@ -36,7 +36,7 @@ class User(UserMixin, db.Model):
 
     # код авторизации
     auth_code = db.Column(String(5), nullable=True, default='')
-    auth_code_expiry = db.Column(DateTime, nullable=True, default='')
+    auth_code_expiry = db.Column(DateTime, nullable=True, default=datetime.now)
 
     # профиль
     first_name = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваше имя."}, default='')
