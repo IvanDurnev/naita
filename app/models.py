@@ -32,11 +32,11 @@ class User(UserMixin, db.Model):
     vk_last_name = Column(Text)
     vk_avatar = Column(Text)
     vk_verified = Column(Boolean)
-    gpt_thread = Column(Text)
+    gpt_thread = Column(Text, default='')
 
     # код авторизации
-    auth_code = db.Column(String(5), nullable=True)
-    auth_code_expiry = db.Column(DateTime, nullable=True)
+    auth_code = db.Column(String(5), nullable=True, default='')
+    auth_code_expiry = db.Column(DateTime, nullable=True, default='')
 
     # профиль
     first_name = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваше имя."}, default='')
