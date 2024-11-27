@@ -36,6 +36,7 @@ def index_vk_login():
         user = User.query.filter(User.email == vk_user['user']['email']).first()
         if not user:
             user = User()
+        if not user.name:
             user.name = f"{vk_user['user']['first_name']} {vk_user['user']['last_name']}"
         user.email = vk_user['user']['email']
         user.sex = vk_user['user']['sex']
