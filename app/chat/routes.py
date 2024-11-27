@@ -7,6 +7,7 @@ from app import socketio, login, Config, db
 from app.models import Message
 from app.chat import bp as chat_bp
 from app.chat import texts
+from app.chat.openai_proxy import OpenAIProxy
 from app.models import User
 import random
 import logging
@@ -18,6 +19,7 @@ from sqlalchemy.sql.sqltypes import Boolean
 
 
 openai = OpenAI(api_key=Config.OPENAI_API_KEY)
+openai_proxy_client = OpenAIProxy()
 
 @socketio.on('connect', namespace='/chat')
 def handle_connect():
@@ -86,47 +88,18 @@ def handle_message(data):
             return Response(status=200)
 
         # тут обрабатываем входящее сообщение в зависимости от типа: текст или файл+-текст
-        assistant = openai.beta.assistants.retrieve(
-            assistant_id=Config.OPENAI_GPT_ASSISTANT_ID
-        )
 
-        thread = None
-        try:
-            thread = openai.beta.threads.retrieve(current_user.gpt_thread or '')
-        except Exception as e:
-            pass
-        if not thread:
-            thread = openai.beta.threads.create()
-            current_user.gpt_thread = thread.id
+        assistant_id = Config.OPENAI_GPT_ASSISTANT_ID
+        thread_id = None
+        if not current_user.gpt_thread:
+            thread_id = openai_proxy_client.create_thread()
+            current_user.gpt_thread = thread_id
             db.session.commit()
+        content = message_text + f'\n\n{current_user.get_profile_txt()}'
 
-        # добавляем сообщение от пользователя
-        messages = openai.beta.threads.messages.create(
-            thread_id=thread.id,
-            role="user",
-            content=message_text+f'\n\n{current_user.get_profile_txt()}'
-        )
-
-        run = openai.beta.threads.runs.create_and_poll(
-            thread_id=thread.id,
-            assistant_id=assistant.id
-        )
-
-        if run.status == 'completed':
-            messages = openai.beta.threads.messages.list(
-                thread_id=thread.id
-            )
-
-            message = Message()
-            message.text = messages.data[0].content[0].text.value.strip()
-            message.message_type = 'text'
-            message.receiver_id = current_user.id
-            db.session.add(message)
-            db.session.commit()
-
-            emit('response', {'message': messages.data[0].content[0].text.value.strip(), 'type': 'text'})
-        else:
-            logging.info(run.status)
+        response = openai_proxy_client.ask_assistant(assistant_id, content, thread_id)
+        if response:
+            emit('response', {'message': response, 'type': 'text'})
         return
     else:
         if message_type == 'text' and is_email_address(message_text):

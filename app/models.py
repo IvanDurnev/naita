@@ -1,5 +1,4 @@
 import json
-
 from flask import url_for
 from flask_mail import Message as MailMessage
 from app import db, login, Config, mail
@@ -176,34 +175,26 @@ class User(UserMixin, db.Model):
             print(run.status)
 
     def check_candidate_v2(self):
-        url = f'{Config.OPENAI_PROXY_ADDR}/v1/ask-assistant'
-
-        headers = {
-            'Content-Type': 'application/json',
-        }
-
-        body = json.dumps({
-            'assistant_id': Config.OPENAI_GPT_ASSISTANT_ID,
-            'content': f'''Пройдись с этим профилем по всем вакансиям \n\n{self.get_profile_txt()}
-Верни в табличном виде (markdown):
-ФИО, вакансия, подходящие под эту вакансию навыки пользователя, подходящее образование, подходящий опыт, общая оценка совместимости от 1 до 5, резюме, разъяснение оценки
+        from app.chat.openai_proxy import OpenAIProxy
+        openai_proxy_client = OpenAIProxy()
+        content =  f'''Пройдись с этим профилем по всем вакансиям \n\n{self.get_profile_txt()}
+Верни в табличном виде на русском языке с разметкой markdown:
+вакансия, подходящие под эту вакансию навыки пользователя, подходящее образование, подходящий опыт, общая оценка совместимости от 1 до 5, разъяснение оценки
 '''
-        })
 
-        response = requests.post(url, headers=headers, data=body)
-
-        if response.status_code == 200:
+        if response := openai_proxy_client.ask_assistant(Config.OPENAI_GPT_ASSISTANT_ID, content):
             message = Message()
-            message.text = response.json().get('content', '').strip()
+            message.text = response
             message.message_type = 'text'
             message.receiver_id = self.id
             db.session.add(message)
             db.session.commit()
 
             self.profile_assessment = message.text
+            db.session.commit()
             return message.text
 
-        logging.warning(response.json())
+        logging.error('Не удалось получить скрининг кандидата')
         return False
 
 
