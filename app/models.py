@@ -39,17 +39,17 @@ class User(UserMixin, db.Model):
     auth_code_expiry = db.Column(DateTime, nullable=True)
 
     # профиль
-    first_name = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваше имя."})
-    second_name = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваше отчество."})
-    last_name = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, вашу фамилию."})
-    phone = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваш номер телефона."})
-    city = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваш город."})
-    relocation_ready = Column(Text, comment='Готовность к релокации', info={"check_unfilled": True, "question": "Готовы ли вы к релокации?"})
-    remote_ready = Column(Text, comment='Готовность к удаленной работе', info={"check_unfilled": True, "question": "Готовы ли вы к удаленной работе?"})
-    professional_experience = Column(Text, comment='Опыт работы', info={"check_unfilled": True, "question": "Опишите ваш опыт"})
-    skills = Column(Text, comment='Описание навыков', info={"check_unfilled": True, "question": "Напишите, пожалуйста, подробно ваши профессиональные навыки."})
-    education = Column(Text, comment='Образования', info={"check_unfilled": True, "question": "Напишите, пожалуйста, какое у вас образование (учебное заведение, специальность, год окончания, ученая степень)?"})
-    profile_assessment = Column(Text)
+    first_name = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваше имя."}, nullable=True)
+    second_name = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваше отчество."}, nullable=True)
+    last_name = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, вашу фамилию."}, nullable=True)
+    phone = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваш номер телефона."}, nullable=True)
+    city = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваш город."}, nullable=True)
+    relocation_ready = Column(Text, comment='Готовность к релокации', info={"check_unfilled": True, "question": "Готовы ли вы к релокации?"}, nullable=True)
+    remote_ready = Column(Text, comment='Готовность к удаленной работе', info={"check_unfilled": True, "question": "Готовы ли вы к удаленной работе?"}, nullable=True)
+    professional_experience = Column(Text, comment='Опыт работы', info={"check_unfilled": True, "question": "Опишите ваш опыт"}, nullable=True)
+    skills = Column(Text, comment='Описание навыков', info={"check_unfilled": True, "question": "Напишите, пожалуйста, подробно ваши профессиональные навыки."}, nullable=True)
+    education = Column(Text, comment='Образования', info={"check_unfilled": True, "question": "Напишите, пожалуйста, какое у вас образование (учебное заведение, специальность, год окончания, ученая степень)?"}, nullable=True)
+    profile_assessment = Column(Text, nullable=True)
 
     # Отношения для полученных и отправленных сообщений
     sent_messages = db.relationship("Message", foreign_keys='Message.sender_id', back_populates="sender",
