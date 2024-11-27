@@ -131,12 +131,25 @@ def handle_message(data):
 
         emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
 
-@socketio.on('processUser', namespace='/chat')
-def process_user(data):
-    emit('analytics')
-    # response = current_user.check_candidate_v1()
-    response = current_user.check_candidate_v2()
-    emit('response', {'message': response, 'type': 'text'})
+@socketio.on('delMyMessages', namespace='/chat')
+def del_messages_history():
+    current_user.first_name = ''
+    current_user.second_name = ''
+    current_user.last_name = ''
+    current_user.phone = ''
+    current_user.city = ''
+    current_user.relocation_ready = ''
+    current_user.remote_ready = ''
+    current_user.professional_experience = ''
+    current_user.skills = ''
+    current_user.education = ''
+    current_user.profile_assessment = ''
+
+    messages = Message.query.filter((Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)).all()
+    for message in messages:
+        db.session.delete(message)
+    db.session.commit()
+    emit('response', {'message': 'Перезагрузи страницу', 'type': 'text'})
     return Response(status=200)
 
 @chat_bp.get('/messages')

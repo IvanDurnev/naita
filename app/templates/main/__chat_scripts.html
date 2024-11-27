@@ -220,8 +220,8 @@
         }
     });
 
-    // Тестовый скрининг
-    function screenUser() {
-        socket.emit('processUser', { text: 'Ало' });
+    // Удалить всю переписку
+    function delMyMessages() {
+        socket.emit('delMyMessages');
     }
 </script>

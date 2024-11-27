@@ -9,7 +9,7 @@
     </main>
     {% if current_user.is_authenticated %}
         {% if current_user.profile_complete() %}
-            <a class="btn btn-success" onclick="screenUser();">Провести скрининг</a>
+            <a class="btn btn-danger" onclick="delMyMessages();">Удалить переписку</a>
         {% endif %}
     {% endif %}
 {% endblock %}
