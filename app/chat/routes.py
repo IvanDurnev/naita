@@ -99,6 +99,12 @@ def handle_message(data):
 
         response = openai_proxy_client.ask_assistant(assistant_id, content, thread_id)
         if response:
+            message = Message()
+            message.text = response
+            message.message_type = 'text'
+            message.receiver_id = current_user.id
+            db.session.add(message)
+            db.session.commit()
             emit('response', {'message': response, 'type': 'text'})
         return
     else:
