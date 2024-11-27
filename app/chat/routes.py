@@ -80,7 +80,8 @@ def handle_message(data):
         # если профиль заполнен и не проведен скрининг - проводим скрининг
         if not current_user.profile_assessment:
             emit('analytics')
-            response = current_user.check_candidate_v1()
+            # response = current_user.check_candidate_v1()
+            response = current_user.check_candidate_v2()
             emit('response', {'message': response, 'type': 'text'})
             return Response(status=200)
 
@@ -125,8 +126,7 @@ def handle_message(data):
 
             emit('response', {'message': messages.data[0].content[0].text.value.strip(), 'type': 'text'})
         else:
-            print(run.status)
-
+            logging.info(run.status)
         return
     else:
         if message_type == 'text' and is_email_address(message_text):
@@ -161,7 +161,8 @@ def handle_message(data):
 @socketio.on('processUser', namespace='/chat')
 def process_user(data):
     emit('analytics')
-    response = current_user.check_candidate_v1()
+    # response = current_user.check_candidate_v1()
+    response = current_user.check_candidate_v2()
     emit('response', {'message': response, 'type': 'text'})
     return Response(status=200)
 
