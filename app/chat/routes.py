@@ -90,8 +90,8 @@ def handle_message(data):
         # тут обрабатываем входящее сообщение в зависимости от типа: текст или файл+-текст
 
         assistant_id = Config.OPENAI_GPT_ASSISTANT_ID
-        thread_id = None
-        if not current_user.gpt_thread:
+        thread_id = current_user.gpt_thread
+        if not thread_id:
             thread_id = openai_proxy_client.create_thread()
             current_user.gpt_thread = thread_id
             db.session.commit()
