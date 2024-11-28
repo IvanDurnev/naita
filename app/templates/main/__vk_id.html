@@ -6,7 +6,7 @@
 
             VKID.Config.init({
                 app: 52156583,
-                redirectUrl: 'https://itd.ru.tuna.am/vk_login',
+                redirectUrl: '{{ vk_redirect_uri }}',
                 responseMode: VKID.ConfigResponseMode.Callback,
                 source: VKID.ConfigSource.LOWCODE,
                 scope: 'vkid.personal_info email'

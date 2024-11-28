@@ -33,6 +33,7 @@ class Config(object):
     VK_APP_ID = os.getenv('VK_APP_ID')
     VK_ID_KEY = os.getenv('VK_ID_KEY')
     VK_ID_SERVICE_KEY = os.getenv('VK_ID_SERVICE_KEY')
+    VK_ID_REDIRECT_URI = os.getenv('VK_ID_REDIRECT_URI')
 
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') or None
     OPENAI_GPT_ASSISTANT_ID = os.getenv('OPENAI_GPT_ASSISTANT_ID') or None

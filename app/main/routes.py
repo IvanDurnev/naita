@@ -16,7 +16,9 @@ import os
 def index_main():
     # yagpt_client = YAGPT()
     # yagpt_client.completion('Привет!')
-    return render_template(template_name_or_list='main/index.html')
+    return render_template(template_name_or_list='main/index.html',
+                           vk_redirect_uri=Config.VK_ID_REDIRECT_URI
+                           )
 
 
 @bp.post('/verify_email')
