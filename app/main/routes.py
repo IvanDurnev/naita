@@ -1,10 +1,9 @@
 import json
-
 import requests
 from sqlalchemy.testing.plugin.plugin_base import logging
-from app import db
+from app import db, sess
 from app.main import bp
-from flask import render_template, redirect, request, Response, jsonify
+from flask import render_template, redirect, request, Response, jsonify, session
 from app.models import User, load_user, Message
 from flask_login import login_user, logout_user, current_user
 from app.yagpt.yagpt import YAGPT
@@ -18,6 +17,39 @@ def index_main():
     # yagpt_client = YAGPT()
     # yagpt_client.completion('Привет!')
     return render_template(template_name_or_list='main/index.html')
+
+
+@bp.post('/verify_email')
+def verify_email():
+    try:
+        if not (user:= User.query.filter(User.email == request.json['email']).first()):
+            user = User()
+            user.email = request.json['email']
+            db.session.add(user)
+            db.session.commit()
+
+        user.set_auth_code()
+        user.send_auth_code()
+        session['user_email'] = user.email
+        return Response(status=200)
+    except Exception as e:
+        logging.error(f'Не удалось создать/найти пользователя по электронной почте. {e}')
+        return Response(status=500)
+
+
+@bp.post('/verify_email_code')
+def verify_email_code():
+    try:
+        if not (user:= User.query.filter(User.email == session['user_email']).first()):
+            return Response(status=404)
+
+        if user.verify_auth_code(request.json['code']):
+            login_user(user, remember=True)
+            return Response(status=200)
+        return Response(status=403)
+    except Exception as e:
+        logging.error(f'Не удалось залогинить пользователя по электронной почте. {e}')
+        return Response(status=500)
 
 
 @bp.post('/vk_login')

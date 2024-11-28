@@ -58,13 +58,12 @@ class User(UserMixin, db.Model):
     received_messages = db.relationship("Message", foreign_keys='Message.receiver_id', back_populates="receiver",
                                      cascade="all, delete-orphan")
 
-    # Отношения для опыта, навыков, образования
-    # professional_experience = db.relationship("ProfessionalExperience", back_populates="owner", info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваши места работы и должности"})
-    # skills = db.relationship("Skills", back_populates="owner", info={"check_unfilled": True, "question": "Напишите, пожалуйста, подробно ваши профессиональные навыки."})
-    # education = db.relationship("Education", back_populates="owner", info={"check_unfilled": True, "question": "Напишите, пожалуйста, какое у вас образование (учебное заведение, специальность, год окончания, ученая степень)?"})
-
     def get_avatar(self):
-        return url_for('static', filename='avatars/' + str(self.id) + '.jpg')
+        avatar_path = os.path.join(Config.STATIC_FOLDER, 'users', str(self.id), 'avatar.jpg')
+        if os.path.exists(avatar_path):
+            return url_for('static', filename=f'users/{str(self.id)}/avatar.jpg')
+        else:
+            return url_for('static', filename=f'users/default/avatar_pixar.jpg')
 
     def set_auth_code(self):
         # Сохранение кода в базе данных с ограничением по времени
@@ -134,7 +133,6 @@ class User(UserMixin, db.Model):
         #             return {'field': relationship.key, 'question': relationship.info.get("question", '')}
 
         return None  # Все отмеченные поля заполнены
-
 
     def check_candidate_v1(self):
         assistant = openai.beta.assistants.retrieve(
@@ -210,38 +208,3 @@ class Message(db.Model):
 
     sender = db.relationship("User", foreign_keys=[sender_id])
     receiver = db.relationship("User", foreign_keys=[receiver_id])
-
-
-# class ProfessionalExperience(db.Model):
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
-#     company = Column(Text)
-#     position = Column(Text)
-#     description = Column(Text)
-#     start_date = Column(DateTime)
-#     end_date = Column(DateTime)
-#     is_current = Column(Boolean)
-#     responsibilities = Column(Text)
-#     technologies = Column(Text)
-#
-#     owner = db.relationship("User", foreign_keys=[user_id])
-#
-# class Skills(db.Model):
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
-#     name = Column(Text)
-#     level = Column(Integer)
-#
-#     owner = db.relationship("User", foreign_keys=[user_id])
-#
-# class Education(db.Model):
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
-#     university = Column(Text)
-#     specialty = Column(Text)
-#     degree = Column(Text)
-#     start_date = Column(DateTime)
-#     end_date = Column(DateTime)
-#     description = Column(Text)
-#
-#     owner = db.relationship("User", foreign_keys=[user_id])

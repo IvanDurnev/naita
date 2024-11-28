@@ -5,14 +5,97 @@
     </div>
     <div id="nav-menu">
         {% if not current_user.is_authenticated %}
-            {% include 'main/__vk_id.html' %}
+            <div id="user-info">
+                <a class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#loginStaticBackdrop">Войти</a>
+            </div>
         {% else %}
             <div id="user-info">
-                <img src="{{ current_user.vk_avatar }}" width="50" height="50" style="border-radius: 50%" alt="User avatar">
+                <img src="{{ current_user.get_avatar() }}" width="50" height="50" style="border-radius: 50%" alt="User avatar">
                 <p style="margin: 0">Привет, {{ current_user.name }}!</p>
                 <a class="btn btn-secondary" onclick="logout();">Выйти</a>
             </div>
         {% endif %}
     </div>
-
 </nav>
+
+<!-- Modal login -->
+<div class="modal fade" id="loginStaticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="loginStaticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="loginStaticBackdropLabel">Войти</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="login-btns-wrapper">
+                    <div>
+                        <form id="verify-email-form" onsubmit="verifyEmail(event);" style="display: grid;">
+                            <p>Войти по электронной почте</p>
+                            <input class="form-control" type="email" required>
+                            <input class="btn btn-outline-secondary w-50 mt-1" type="submit" value="Получить код для входа" style="justify-self: center;">
+                        </form>
+                    </div>
+                    <div class="mt-3">
+                        {% include 'main/__vk_id.html' %}
+                    </div>
+                </div>
+                <div class="check-code-wrapper">
+                    <div>
+                        <form id="verify-email-code-form" onsubmit="verifyEmailCode(event);" style="display: grid;">
+                            <p>Введите код из письма</p>
+                            <input class="form-control" type="text" required>
+                            <input class="btn btn-outline-secondary w-50 mt-1" type="submit" value="Войти" style="justify-self: center;">
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const verifyEmailForm = document.getElementById('verify-email-form')
+    const verifyEmailCodeForm = document.getElementById('verify-email-code-form')
+    const verifyEmailInput = verifyEmailForm.querySelector('input[type="email"]')
+    const verifyEmailBtn = verifyEmailForm.querySelector('input[type="submit"]')
+    const loginBtnsWrapper = document.querySelector('.login-btns-wrapper')
+    const checkCodeWrapper = document.querySelector('.check-code-wrapper')
+    const verifyEmailCodeInput = verifyEmailCodeForm.querySelector('input[type="text"]')
+    $(checkCodeWrapper).hide();
+
+    async function verifyEmail(e) {
+        e.preventDefault();
+
+        let response = await fetch('/verify_email',
+            {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email: verifyEmailInput.value})
+            }
+        )
+
+        if (response.ok) {
+            $(loginBtnsWrapper).hide();
+            $(checkCodeWrapper).show();
+        }
+    }
+
+    async function verifyEmailCode(e) {
+        e.preventDefault();
+
+        let response = await fetch('/verify_email_code',
+            {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({code: verifyEmailCodeInput.value})
+            }
+        )
+
+        if (response.ok) {
+            location.reload();
+        }
+    }
+</script>
