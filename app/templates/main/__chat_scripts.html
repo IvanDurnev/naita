@@ -22,9 +22,6 @@
         linkify: true,
         typographer: true,
     })
-    {#md.use(window.markdownitSynapseTable);#}
-
-    //https://www.npmjs.com/package/markdown-it-synapse-table
 
     let fileToSend = null;
 
@@ -53,8 +50,7 @@
     });
 
     socket.on('reload', (event) => {
-        {#window.location.reload();#}
-        window.location.href = "/";
+        window.location.reload();
     });
 
     socket.on('typing', (event) => {
@@ -95,6 +91,7 @@
             inputMessage.value = '';
         }
     }
+
     sendBtn.addEventListener('click', sendMessage);
     inputMessage.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
@@ -136,7 +133,7 @@
             messageElement.appendChild(avatar);
         } else {
             const avatar = document.createElement('img');
-            avatar.src = "{% if current_user.is_authenticated %}{{ url_for('static', filename='users/'+current_user.id|string+'/avatar.jpg') }}{% endif %}";
+            avatar.src = "{% if current_user.is_authenticated %}{{ current_user.get_avatar() }}{% else %}{{ url_for('static', filename='users/default/avatar_pixar.jpg') }}{% endif %}";
             avatar.alt = "User Avatar";
             avatar.classList.add('chat-avatar');
             messageElement.appendChild(avatar);
