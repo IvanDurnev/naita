@@ -1,0 +1,130 @@
+#chat {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: center;
+    justify-items: center;
+}
+#chat-container {
+    width: 400px;
+    height: 600px;
+    background-color: #ffffff;
+    box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: 10px;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+#chat-header {
+    padding: 10px;
+    background-color: #007bff;
+    color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+#chat-header #assistant-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+#messages {
+    padding: 15px;
+    overflow-y: auto;
+    flex-grow: 1;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.message {
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    max-width: 75%;
+    min-width: 25%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+}
+
+.message pre {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+}
+
+.incoming {
+    background-color: #f0f0f0;
+    align-self: flex-start;
+}
+
+.outgoing {
+    background-color: #007bff;
+    color: #ffffff;
+    align-self: flex-end;
+}
+
+.incoming img {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+#chat-input {
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background-color: #f7f7f7;
+    border-top: 1px solid #ddd;
+}
+
+.chat-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+}
+
+#input-message {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    outline: none;
+}
+
+#send-btn, #file-btn, #fullscreen-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #000;
+}
+
+#fullscreen-btn {
+    color: #ffffff;
+    font-size: 1.2em;
+    cursor: pointer;
+}
+
+#file-preview {
+    margin-top: 5px;
+    font-size: 0.9em;
+    color: #555;
+}
+
+#assistant-typing {
+    font-size: 0.9em;
+    color: #f0f0f0;
+    display: none;
+    margin-left: 10px;
+}

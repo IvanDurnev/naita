@@ -6,4 +6,6 @@ __pycache__/
 venv/
 migrations/
 flask_session/
-static
+app/static/credentials/
+app/static/images/
+app/static/users/

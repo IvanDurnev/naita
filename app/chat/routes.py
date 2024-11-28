@@ -108,33 +108,6 @@ def handle_message(data):
             emit('response', {'message': response, 'type': 'text'})
         return
     else:
-        if message_type == 'text' and is_email_address(message_text):
-            user = User.query.filter(User.email == message_text.lower()).first()
-            if not user:
-                user = User()
-                user.email = message_text.lower()
-                db.session.commit()
-            user.set_auth_code()
-            user.send_auth_code()
-            session['user_email'] = user.email
-            emit('response', {'message': texts.EMAIL_CODE, 'type': 'text', 'email': user.email})
-            return
-        if message_type == 'text' and is_5digit_code(message_text) and email and not current_user.is_authenticated:
-            # проверяем 5-тизначный код из email
-            user = User.query.filter(User.email == session['user_email']).first()
-            # user = User.query.filter(User.email == email).first()
-            if user and user.verify_auth_code(message_text):
-                # Авторизация успешна
-                emit('response', {'message': 'Логиним', 'type': 'text'})
-                login_user(user, remember=True)
-                session['logged_in'] = True
-                session.modified = True  # Убедитесь, что сессия обновлена
-                emit('reload')
-                return "Успешная авторизация", 200
-            else:
-                emit('response', {'message': texts.WRONG_AUTH_CODE, 'type': 'text'})
-            return
-
         emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
 
 @socketio.on('delMyMessages', namespace='/chat')
