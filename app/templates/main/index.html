@@ -2,16 +2,11 @@
 
 {% block content %}
     {% include 'main/__nav_main.html' %}
-    <main class="container-fluid">
+    <main class="container">
         <div id="chat">
             {% include 'main/__chat.html' %}
         </div>
     </main>
-    {% if current_user.is_authenticated %}
-        {% if current_user.profile_complete() %}
-            <a class="btn btn-danger" onclick="delMyMessages();">Удалить переписку</a>
-        {% endif %}
-    {% endif %}
 {% endblock %}
 
 {% block scripts %}

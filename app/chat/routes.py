@@ -1,10 +1,12 @@
+import json
+
 from flask import request, jsonify, session, Response
 from flask_login import current_user, login_user
 from flask_socketio import emit, join_room, leave_room
 from sqlalchemy.testing.plugin.plugin_base import logging
 from sqlalchemy.testing.suite.test_reflection import users
 from app import socketio, login, Config, db
-from app.models import Message
+from app.models import Message, Resume
 from app.chat import bp as chat_bp
 from app.chat import texts
 from app.chat.openai_proxy import OpenAIProxy
@@ -16,6 +18,7 @@ from openai import OpenAI
 import re
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.sqltypes import Boolean
+from parse_hh_data import download, parse as hh_parse
 
 
 openai = OpenAI(api_key=Config.OPENAI_API_KEY)
@@ -45,6 +48,37 @@ def handle_message(data):
         message.sender_id = current_user.id
         db.session.add(message)
         db.session.commit()
+
+        # если пришла ссылка
+        if hh_links:=extract_and_validate_hh_resume_link(message_text):
+            emit('hh_resume_reviewing')
+            if cv_id:=extract_hh_resume_id(hh_links[0]):
+                try:
+                    hh_cv = download.resume(cv_id)
+                    hh_cv = hh_parse.resume(hh_cv)
+                    if not (resume:=Resume.query.filter(Resume.user==current_user.id, Resume.source=='hh').first()):
+                        resume = Resume()
+                    resume.user = current_user.id
+                    resume.source = 'hh'
+
+                    resume.data = json.dumps({})
+                    if not resume in db.session:
+                        db.session.add(resume)
+                    db.session.commit()
+
+                    resume.data = hh_cv
+                    db.session.commit()
+                    message = Message()
+                    message.text = texts.RESUME_SAVED
+                    message.message_type = 'text'
+                    message.receiver_id = current_user.id
+                    db.session.add(message)
+                    db.session.commit()
+                    emit('response', {'message': texts.RESUME_SAVED, 'type': 'text'})
+                except Exception as e:
+                    logging.error('Не удалось сохранить резюме с ХХ')
+                    emit('response', {'message': texts.RESUME_NOT_SAVED, 'type': 'text'})
+            return
 
         emit('typing')
 
@@ -158,3 +192,15 @@ def is_email_address(text):
 
 def is_5digit_code(text):
     return bool(re.match(r'^\d{5}$', text))
+
+def extract_and_validate_hh_resume_link(text):
+    pattern = r"https://hh\.ru/resume/[a-zA-Z0-9_-]+(?:\?.*)?"
+    matches = re.findall(pattern, text)
+    return matches
+
+def extract_hh_resume_id(url):
+    pattern = r"https://hh\.ru/resume/([a-zA-Z0-9_-]+)"
+    match = re.search(pattern, url)
+    if match:
+        return match.group(1)  # Возвращаем ID
+    return None  # Если ID не найден

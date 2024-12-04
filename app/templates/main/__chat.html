@@ -1,18 +1,14 @@
 <div id="chat-container">
-    <div id="chat-header">
-        <div style="display: flex; align-items: center;">
-            <img id="assistant-avatar" src="{{ url_for('static', filename='images/naita.webp') }}" alt="Assistant Avatar">
-            <span>НАЙТА</span>
-            <div id="assistant-typing"></div>
-        </div>
-        <button id="fullscreen-btn"><i class="fas fa-expand"></i></button>
-    </div>
     <div id="messages"></div>
     <div id="chat-input">
-        <input type="file" id="file-input" style="display: none;">
-        <button id="file-btn"><i class="fas fa-paperclip"></i></button>
-        <input type="text" id="input-message" placeholder="Введите сообщение..." disabled>
-        <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+        <div id="file-input-container" class="pt-2">
+            <input type="file" id="file-input" style="display: none;">
+            <button id="file-btn"><i class="fas fa-paperclip"></i></button>
+        </div>
+        <textarea type="text" id="input-message" placeholder="Введите сообщение..." rows="5" disabled></textarea>
+        <div id="send-btn-container" class="pt-2">
+            <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+        </div>
     </div>
     <div id="file-preview"></div>
 </div>

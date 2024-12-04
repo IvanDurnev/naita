@@ -208,3 +208,12 @@ class Message(db.Model):
 
     sender = db.relationship("User", foreign_keys=[sender_id])
     receiver = db.relationship("User", foreign_keys=[receiver_id])
+
+
+class Resume(db.Model):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
+    data = Column(JSONB)
+    created = Column(DateTime, default=datetime.now)
+    updated = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    source = Column(Text)

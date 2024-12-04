@@ -1,7 +1,5 @@
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{#<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>#}
 <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
-
-
 
 <script>
     const socket=io('/chat')
@@ -12,7 +10,6 @@
     const fileBtn = document.getElementById('file-btn');
     const fileInput = document.getElementById('file-input');
     const filePreview = document.getElementById('file-preview');
-    const fullscreenBtn = document.getElementById('fullscreen-btn');
     const assistantTyping = document.getElementById('assistant-typing');
     let currentCallback = ''
     let userEmail = ''
@@ -26,13 +23,11 @@
     let fileToSend = null;
 
     socket.on('connect', () => {
-        console.log('Connected to the server');
         $(inputMessage).removeAttr('disabled');
         loadMessages();
     });
 
     socket.on('disconnect', () => {
-        console.log('Disconnected...');
         $(inputMessage).prop('disabled', true);
     });
 
@@ -55,6 +50,11 @@
 
     socket.on('typing', (event) => {
         assistantTyping.innerText = 'печатает...';
+        assistantTyping.style.display = 'block';
+    });
+
+    socket.on('hh_resume_reviewing', (event) => {
+        assistantTyping.innerText = 'читаю ваше резюме на ХХ...';
         assistantTyping.style.display = 'block';
     });
 
@@ -94,7 +94,7 @@
 
     sendBtn.addEventListener('click', sendMessage);
     inputMessage.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
+        if ((event.key === 'Enter' || event.key === 'NumpadEnter') && (event.metaKey || event.ctrlKey)) {
             event.preventDefault();
             sendMessage();
         }
@@ -125,27 +125,16 @@
     function appendMessage(content, type) {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', type);
-        if (type === 'incoming') {
-            const avatar = document.createElement('img');
-            avatar.src = "{{ url_for('static', filename='images/naita.webp') }}";
-            avatar.alt = "Assistant Avatar";
-            avatar.classList.add('chat-avatar');
-            messageElement.appendChild(avatar);
-        } else {
-            const avatar = document.createElement('img');
-            avatar.src = "{% if current_user.is_authenticated %}{{ current_user.get_avatar() }}{% else %}{{ url_for('static', filename='users/default/avatar_pixar.jpg') }}{% endif %}";
-            avatar.alt = "User Avatar";
-            avatar.classList.add('chat-avatar');
-            messageElement.appendChild(avatar);
-        }
         const textElement = document.createElement('pre');
-        {#textElement.innerHTML = marked.parse(content);#}
 
         textElement.innerHTML = md.render(content);
 
         messageElement.appendChild(textElement);
         messagesContainer.appendChild(messageElement);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: 'smooth'
+        });
     }
 
     // Функция добавления сообщения с файлом в интерфейс чата
@@ -197,25 +186,6 @@
         messagesContainer.appendChild(messageElement);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
-
-    // Полноэкранный режим для чата
-    fullscreenBtn.addEventListener('click', () => {
-        if (chatContainer.style.position !== 'fixed') {
-            chatContainer.style.position = 'fixed';
-            chatContainer.style.top = '0';
-            chatContainer.style.left = '0';
-            chatContainer.style.width = '100%';
-            chatContainer.style.height = '100%';
-            chatContainer.style.borderRadius = '0';
-            fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
-        } else {
-            chatContainer.style.position = 'relative';
-            chatContainer.style.width = '400px';
-            chatContainer.style.height = '600px';
-            chatContainer.style.borderRadius = '10px';
-            fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
-        }
-    });
 
     // Удалить всю переписку
     function delMyMessages() {

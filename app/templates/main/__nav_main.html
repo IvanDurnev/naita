@@ -1,18 +1,26 @@
-<nav id="header-nav">
-    <div id="nav-logo">
-        <img id="assistant-avatar" src="{{ url_for('static', filename='images/naita.webp') }}" alt="Assistant Avatar">
-        <p>НАЙТА</p>
+<nav id="header-nav" class="navbar bg-body-tertiary">
+    <div id="logo-wrapper" class="container-fluid">
+        <a class="navbar-brand" href="#">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" width="30" height="24" class="d-inline-block align-text-top">
+            Найта
+        </a>
+        <span id="assistant-typing"></span>
     </div>
     <div id="nav-menu">
         {% if not current_user.is_authenticated %}
             <div id="user-info">
-                <a class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#loginStaticBackdrop">Войти</a>
+                <a class="btn btn-lightgrey" data-bs-toggle="modal" data-bs-target="#loginStaticBackdrop"><i class="bi bi-box-arrow-in-right"></i></a>
             </div>
         {% else %}
             <div id="user-info">
                 <img src="{{ current_user.get_avatar() }}" width="50" height="50" style="border-radius: 50%" alt="User avatar">
                 <p style="margin: 0">Привет, {{ current_user.name }}!</p>
-                <a class="btn btn-secondary" onclick="logout();">Выйти</a>
+                {% if current_user.is_authenticated %}
+                    {% if current_user.profile_complete() %}
+                        <a class="btn btn-lightgrey border-red" onclick="delMyMessages();"><i class="bi bi-trash"></i></a>
+                    {% endif %}
+                {% endif %}
+                <a class="btn btn-lightgrey" onclick="logout();"><i class="bi bi-box-arrow-in-right"></i></a>
             </div>
         {% endif %}
     </div>
@@ -22,20 +30,28 @@
 <div class="modal fade" id="loginStaticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="loginStaticBackdropLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h1 class="modal-title fs-5" id="loginStaticBackdropLabel">Войти</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+{#            <div class="modal-header">#}
+{#                <h1 class="modal-title fs-5" id="loginStaticBackdropLabel">Войти</h1>#}
+{#                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>#}
+{#            </div>#}
+            <div class="custom-modal-header">
+                <div class="text-start">
+                    <h1 class="modal-title fs-3 mt-3" id="loginStaticBackdropLabel">Войти</h1>
+                </div>
+                <div class="text-end">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
             </div>
             <div class="modal-body">
                 <div class="login-btns-wrapper">
                     <div>
                         <form id="verify-email-form" onsubmit="verifyEmail(event);" style="display: grid;">
-                            <p>Войти по электронной почте</p>
-                            <input class="form-control" type="email" required>
-                            <input class="btn btn-outline-secondary w-50 mt-1" type="submit" value="Получить код для входа" style="justify-self: center;">
+{#                            <p>Войти по электронной почте</p>#}
+                            <input class="form-control" type="email" required placeholder="Электронная почта">
+                            <input class="btn btn-lightgreen w-100 mt-3" type="submit" value="{{ 'получить код для входа' | upper }}" style="justify-self: center;">
                         </form>
                     </div>
-                    <div class="mt-3">
+                    <div class="mt-4">
                         {% include 'main/__vk_id.html' %}
                     </div>
                 </div>
@@ -44,14 +60,14 @@
                         <form id="verify-email-code-form" onsubmit="verifyEmailCode(event);" style="display: grid;">
                             <p>Введите код из письма</p>
                             <input class="form-control" type="text" required>
-                            <input class="btn btn-outline-secondary w-50 mt-1" type="submit" value="Войти" style="justify-self: center;">
+                            <input class="btn btn-lightgreen w-100 mt-3" type="submit" value="Войти" style="justify-self: center;">
                         </form>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-            </div>
+{#            <div class="modal-footer">#}
+{#                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>#}
+{#            </div>#}
         </div>
     </div>
 </div>

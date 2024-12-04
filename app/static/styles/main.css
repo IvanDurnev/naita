@@ -1,17 +1,17 @@
 * {
     box-sizing: border-box;
+    font-family: 'Onest', sans-serif;
 }
 
 body {
-
+    background-color: #f4f4f4!important;
 }
 
-
 main {
-    height: 100vh;
-    display: grid;
-    grid-template-rows: repeat(10, 1fr);
-    grid-gap: 5px;
+    min-height: 100vh;
+    background-color: white!important;
+    padding: 100px 0 150px 0 !important;
+    overflow: scroll;
 }
 
 #header-nav {
@@ -24,8 +24,36 @@ main {
     grid-template-columns: repeat(2, 1fr);
     align-content: center;
     align-items: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    padding: 1% 5%;
+    background-color: white!important;
+    border-bottom: 1px solid #f4f4f4;
+    padding: .5% 2%;
+    z-index: 1000;
+}
+
+#logo-wrapper {
+    justify-content: start!important;
+}
+
+.custom-modal-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 2% 5%;
+    justify-content: center;
+    align-content: center;
+}
+
+.VkIdSdk_oauth_item {
+    background-color: #f4f4f4!important;
+    border-radius: 24px!important;
+    height: 50px!important;
+}
+
+.modal-body {
+    padding: 2% 6% 10% 6%!important;
+}
+
+#verify-email-form .form-control {
+    height: 50px!important;
 }
 
 #nav-menu {
@@ -53,7 +81,8 @@ main {
 
 #user-info {
     display: grid;
-    grid-template-columns: repeat(3, auto);
+    grid-template-columns: repeat(4, auto);
+    grid-gap: 10px;
     justify-content: end;
     justify-items: end;
     align-items: center;
@@ -64,11 +93,30 @@ main {
     margin-left: 20px;
 }
 
-.login-btns-wrapper {
-    display: grid;
+.btn {
+    border-radius: 24px!important;
+    height: 50px!important;
 }
 
-#chat {
-    grid-row: 2/-2;
+.border-red {
+    border: 1px solid red!important;
+}
+
+.btn-lightgrey {
+    background-color: #f4f4f4!important;
+    border-color: #f4f4f4;
+}
+
+.btn-lightgrey i {
+    font-size: 1.7rem;
+    font-weight: bold;
+}
+
+.btn-lightgreen {
+    background-color: #C1FF05!important;
+    border-color: #C1FF05!important;
+}
+
+.login-btns-wrapper {
     display: grid;
 }
