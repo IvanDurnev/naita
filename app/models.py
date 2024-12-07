@@ -2,7 +2,7 @@ import json
 from flask import url_for
 from flask_mail import Message as MailMessage
 from app import db, login, Config, mail
-from flask_login import UserMixin, login_user
+from flask_login import UserMixin, login_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import jwt
@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine.cursor import CursorResult
 import logging
 import openai
+import functools
 
 
 @login.user_loader
@@ -53,10 +54,11 @@ class User(UserMixin, db.Model):
     profile_assessment = Column(Text, default='')
 
     # Отношения для полученных и отправленных сообщений
-    sent_messages = db.relationship("Message", foreign_keys='Message.sender_id', back_populates="sender",
-                                 cascade="all, delete-orphan")
-    received_messages = db.relationship("Message", foreign_keys='Message.receiver_id', back_populates="receiver",
-                                     cascade="all, delete-orphan")
+    sent_messages = db.relationship("Message", foreign_keys='Message.sender_id', back_populates="sender", cascade="all, delete-orphan")
+    received_messages = db.relationship("Message", foreign_keys='Message.receiver_id', back_populates="receiver", cascade="all, delete-orphan")
+
+    # Отношение для данных пользователя
+    user_data = db.relationship("UserData", foreign_keys='UserData.user_id', back_populates="user", cascade="all, delete-orphan")
 
     def get_avatar(self):
         avatar_path = os.path.join(Config.STATIC_FOLDER, 'users', str(self.id), 'avatar.jpg')
@@ -195,6 +197,16 @@ class User(UserMixin, db.Model):
         logging.error('Не удалось получить скрининг кандидата')
         return False
 
+    def add_user_data(self, data):
+        for key in data.keys():
+            if key not in ['request', 'secure_request']:
+                if data.get(key, None):
+                    user_data = UserData()
+                    user_data.user_id = self.id
+                    user_data.text = data.get(key, '')
+                    user_data.type = key
+                    db.session.add(user_data)
+                    db.session.commit()
 
 class Message(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -217,3 +229,48 @@ class Resume(db.Model):
     created = Column(DateTime, default=datetime.now)
     updated = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     source = Column(Text)
+
+
+class UserData(db.Model):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    text = Column(Text)
+    user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
+    type = Column(Text)
+    created = Column(DateTime, default=datetime.now)
+
+    user = db.relationship("User", foreign_keys=[user_id])
+
+
+# Декоратор для сохранения исходящего сообщения в базе данных
+def outgoing_message(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        data = args[0]
+        try:
+            message = Message()
+            message.text = data['content']
+            message.message_type = data['type']
+            message.sender_id = current_user.id
+            db.session.add(message)
+            db.session.commit()
+        except Exception as e:
+            logging.warning(f'Не удалось сохранить исходящее сообщение. {e}')
+        return func(*args, **kwargs)
+    return wrapper
+
+# Декоратор для сохранения исходящего сообщения в базе данных
+def incoming_message(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        data = args[0]
+        try:
+            message = Message()
+            message.text = data['message']
+            message.message_type = data['type']
+            message.receiver_id = current_user.id
+            db.session.add(message)
+            db.session.commit()
+        except Exception as e:
+            logging.warning(f'Не удалось сохранить входящее сообщение. {e}')
+        return func(*args, **kwargs)
+    return wrapper

@@ -56,10 +56,6 @@ class YAGPT:
                 "maxTokens": str(max_tokens)
             },
             "messages": [
-                # {
-                #     "role": "system",
-                #     "text": "Найди ошибки в тексте и исправь их"
-                # },
                 {
                     "role": "user",
                     "text": text
@@ -68,5 +64,4 @@ class YAGPT:
         }
 
         response = requests.post(url=url, headers=headers, data=json.dumps(payload))
-
-        print(response.json())
+        return response.json()['result']['alternatives'][0]['message']['text']

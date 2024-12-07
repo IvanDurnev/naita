@@ -1,14 +1,42 @@
 <div id="chat-container">
     <div id="messages"></div>
-    <div id="chat-input">
+    <div id="chat-input" disabled>
         <div id="file-input-container" class="pt-2">
             <input type="file" id="file-input" style="display: none;">
             <button id="file-btn"><i class="fas fa-paperclip"></i></button>
         </div>
-        <textarea type="text" id="input-message" placeholder="Введите сообщение..." rows="5" disabled></textarea>
+        <textarea type="text" id="input-message" placeholder="Введите сообщение..." rows="5"></textarea>
         <div id="send-btn-container" class="pt-2">
             <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
     <div id="file-preview"></div>
+</div>
+
+<!-- Modal fill info -->
+<div class="modal fade" id="fillInfoStaticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="fillInfoStaticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="custom-modal-header">
+                <div class="text-start">
+                    <h1 class="modal-title fs-3 mt-3" id="fillInfoStaticBackdropLabel">Заполни поля</h1>
+                </div>
+                <div class="text-end">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="login-btns-wrapper">
+                    <div>
+                        <form id="fill-info-form" onsubmit="fillInfo(event);" style="display: grid;">
+                            <input id="first-name" class="form-control" type="text" required placeholder="Имя">
+                            <input id="last-name" class="form-control mt-3" type="text" required placeholder="Фамилия">
+                            <input id="cv-link" class="form-control mt-3" type="text" placeholder="Ссылка на резюме на HeadHunter">
+                            <input class="btn btn-lightgreen w-100 mt-3" type="submit" value="{{ 'Сохранить' | upper }}" style="justify-self: center;">
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

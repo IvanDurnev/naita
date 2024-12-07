@@ -6,7 +6,7 @@ from flask_socketio import emit, join_room, leave_room
 from sqlalchemy.testing.plugin.plugin_base import logging
 from sqlalchemy.testing.suite.test_reflection import users
 from app import socketio, login, Config, db
-from app.models import Message, Resume
+from app.models import Message, Resume, outgoing_message, incoming_message, UserData
 from app.chat import bp as chat_bp
 from app.chat import texts
 from app.chat.openai_proxy import OpenAIProxy
@@ -19,15 +19,30 @@ import re
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.sqltypes import Boolean
 from parse_hh_data import download, parse as hh_parse
+from app.yagpt.yagpt import YAGPT
 
 
 openai = OpenAI(api_key=Config.OPENAI_API_KEY)
 openai_proxy_client = OpenAIProxy()
+ya_gpt_client = YAGPT()
 
 @socketio.on('connect', namespace='/chat')
 def handle_connect():
     if current_user.is_authenticated:
-        emit('response', {'message': texts.welcome(current_user), 'type': 'text'})
+        if current_user.first_name and current_user.last_name:
+            emit('response', {'message': texts.welcome(current_user), 'type': 'text'})
+        else:
+            emit('fillInfo')
+    else:
+        emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
+
+@socketio.on('connect', namespace='/secure_chat')
+def handle_connect_secure():
+    if current_user.is_authenticated:
+        if current_user.first_name and current_user.last_name:
+            emit('response', {'message': texts.welcome(current_user), 'type': 'text'})
+        else:
+            emit('fillInfo')
     else:
         emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
 
@@ -144,6 +159,34 @@ def handle_message(data):
     else:
         emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
 
+@socketio.on('message', namespace='/secure_chat')
+@outgoing_message
+def handle_message_secure(data):
+    if current_user.is_authenticated:
+        if not (current_user.first_name and current_user.last_name):
+            return emit('fillInfo')
+        emit('reading')
+        # анализируем в Я ГПТ текст, разносим его по разным полям, возвращяем в JSON
+        response = ya_gpt_client.completion(texts.clearing_and_isolating(data["content"])).replace("```", "").strip()
+        if response:
+            data = json.loads(response)
+            current_user.add_user_data(data) # сохраняем данные о пользователе
+            emit('typing')
+            content = f'{data.get("secure_request", "")}\n\n{current_user.get_profile_txt()}'
+            response = openai_proxy_client.ask_assistant(content, current_user)
+            emit_response({'message': response, 'type': 'text'})
+    else:
+        emit('typing')
+        emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
+
+@socketio.on('fillInfo', namespace='/secure_chat')
+def secure_chat_fill_info(data):
+    current_user.first_name = data.get('first_name', '')
+    current_user.last_name = data.get('last_name', '')
+    db.session.commit()
+    # парсим резюме, если ссылка есть
+    emit('response', {'message': texts.welcome(current_user), 'type': 'text'})
+
 @socketio.on('delMyMessages', namespace='/chat')
 def del_messages_history():
     current_user.first_name = ''
@@ -161,6 +204,11 @@ def del_messages_history():
     messages = Message.query.filter((Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)).all()
     for message in messages:
         db.session.delete(message)
+
+    user_data = UserData.query.filter(UserData.user_id == current_user.id).all()
+    for ud in user_data:
+        db.session.delete(ud)
+
     db.session.commit()
     emit('response', {'message': 'Перезагрузи страницу', 'type': 'text'})
     return Response(status=200)
@@ -186,6 +234,10 @@ def messages_history():
             for message in messages
         ]
     return jsonify(messages_json), 200
+
+@incoming_message
+def emit_response(data):
+    emit('response', data)
 
 def is_email_address(text):
     return bool(re.match(r'^(?:(?!.*\.\.)([a-zA-Z0-9!#$%&\'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&\'*+/=?^_`{|}~-]+)*)|(\"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\\\[\x01-\x09\x0b\x0c\x0e-\x7f])\"))@(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}|(?:\[(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\]))$', text))

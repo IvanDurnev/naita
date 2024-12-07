@@ -3,14 +3,17 @@
 
 <script>
     const socket=io('/chat')
+    const secureSocket=io('/secure_chat')
     const chatContainer = document.getElementById('chat-container');
     const messagesContainer = document.getElementById('messages');
     const inputMessage = document.getElementById('input-message');
+    const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
     const fileBtn = document.getElementById('file-btn');
     const fileInput = document.getElementById('file-input');
     const filePreview = document.getElementById('file-preview');
     const assistantTyping = document.getElementById('assistant-typing');
+    const fillInfoModal = new bootstrap.Modal('#fillInfoStaticBackdrop', {})
     let currentCallback = ''
     let userEmail = ''
 
@@ -22,43 +25,58 @@
 
     let fileToSend = null;
 
-    socket.on('connect', () => {
-        $(inputMessage).removeAttr('disabled');
+    secureSocket.on('connect', () => {
+        $(chatInput).removeAttr('disabled');
         loadMessages();
     });
-
-    socket.on('disconnect', () => {
-        $(inputMessage).prop('disabled', true);
+    secureSocket.on('disconnect', () => {
+        $(chatInput).prop('disabled', true);
     });
 
-    socket.on('response', (event) => {
+    {#socket.on('response', socketMessageResponse);#}
+    secureSocket.on('response', socketMessageResponse);
+    {#socket.on('typing', socketMesageStatusTyping);#}
+    secureSocket.on('typing', socketMesageStatusTyping);
+    {#socket.on('reading', socketMesageStatusReading);#}
+    secureSocket.on('reading', socketMesageStatusReading);
+    secureSocket.on('fillInfo', socketMessageFillInfo);
 
+    function socketMessageResponse(event) {
         assistantTyping.style.display = 'none';
+        $(chatInput).removeAttr('disabled');
         if (event.type === 'text') {
             appendMessage(event.message, 'incoming');
         } else if (event.type === 'file') {
             appendMessageWithFile({ name: event.fileName, type: event.contentType || 'application/octet-stream', data: event.content }, event.comment, 'incoming');
         }
-
         currentCallback = event.callback;
         userEmail = event.email
-    });
+    }
 
-    socket.on('reload', (event) => {
+    function socketMesageStatusTyping(event) {
+        assistantTyping.innerText = 'печатает...';
+        assistantTyping.style.display = 'block';
+    }
+
+    function socketMesageStatusReading(event) {
+        assistantTyping.innerText = 'читает...';
+        assistantTyping.style.display = 'block';
+    }
+
+    function socketMessageFillInfo(event) {
+        fillInfoModal.show();
+    }
+
+    secureSocket.on('reload', (event) => {
         window.location.reload();
     });
 
-    socket.on('typing', (event) => {
-        assistantTyping.innerText = 'печатает...';
-        assistantTyping.style.display = 'block';
-    });
-
-    socket.on('hh_resume_reviewing', (event) => {
+    secureSocket.on('hh_resume_reviewing', (event) => {
         assistantTyping.innerText = 'читаю ваше резюме на ХХ...';
         assistantTyping.style.display = 'block';
     });
 
-    socket.on('analytics', (event) => {
+    secureSocket.on('analytics', (event) => {
         assistantTyping.innerText = 'анализирует профиль...'
         assistantTyping.style.display = 'block';
     });
@@ -78,6 +96,7 @@
     // Отправка текстового сообщения
     function sendMessage() {
         const message = inputMessage.value.trim();
+        $(chatInput).attr('disabled', true);
         if (message !== '' || fileToSend) {
             if (fileToSend) {
                 appendMessageWithFile(fileToSend, message, 'outgoing');
@@ -86,7 +105,7 @@
                 filePreview.textContent = '';
             } else {
                 appendMessage(message, 'outgoing');
-                socket.send({ type: 'text', content: message , callback: currentCallback, email: userEmail});
+                secureSocket.send({ type: 'text', content: message , callback: currentCallback, email: userEmail});
             }
             inputMessage.value = '';
         }
@@ -190,5 +209,15 @@
     // Удалить всю переписку
     function delMyMessages() {
         socket.emit('delMyMessages');
+    }
+
+    async function fillInfo(e) {
+        e.preventDefault();
+        secureSocket.emit('fillInfo', {
+            first_name: document.querySelector('#first-name').value,
+            last_name: document.querySelector('#last-name').value,
+            cv_link: document.querySelector('#cv-link').value,
+        });
+        fillInfoModal.hide();
     }
 </script>

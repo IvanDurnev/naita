@@ -18,6 +18,12 @@
     padding: 5px 20px;
 }
 
+#chat-input[disabled], #chat-input[disabled] * {
+    background-color: #c4c4c4!important;
+    border-color: #c4c4c4!important;
+    pointer-events: none;
+}
+
 #file-input-container, #send-btn-container {
     width: 10%;
 }
