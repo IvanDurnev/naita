@@ -65,5 +65,5 @@ class YAGPT:
 
         response = requests.post(url=url, headers=headers, data=json.dumps(payload))
         if os.environ.get('DEBUG'):
-            print(response)
+            logging.info(response)
         return response.json()['result']['alternatives'][0]['message']['text']
