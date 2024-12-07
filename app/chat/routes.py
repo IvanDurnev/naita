@@ -26,16 +26,6 @@ openai = OpenAI(api_key=Config.OPENAI_API_KEY)
 openai_proxy_client = OpenAIProxy()
 ya_gpt_client = YAGPT()
 
-# @socketio.on('connect', namespace='/chat')
-# def handle_connect():
-#     if current_user.is_authenticated:
-#         if current_user.first_name and current_user.last_name:
-#             emit('response', {'message': texts.welcome(current_user), 'type': 'text'})
-#         else:
-#             emit('fillInfo')
-#     else:
-#         emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
-
 @socketio.on('connect', namespace='/secure_chat')
 def handle_connect_secure():
     if current_user.is_authenticated:
@@ -45,10 +35,6 @@ def handle_connect_secure():
             emit('fillInfo')
     else:
         emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
-
-# @socketio.on('disconnect', namespace='/chat')
-# def handle_disconnect():
-#     logging.info('Пользователь отключился')
 
 @socketio.on('disconnect', namespace='/secure_chat')
 def handle_disconnect_secure():
@@ -167,45 +153,16 @@ def handle_message(data):
 @outgoing_message
 def handle_message_secure(data):
     if current_user.is_authenticated:
+        # нет первоначальной инфы - даем модалку для ввода имени, фамилии и ссылки на резюме
         if not (current_user.first_name and current_user.last_name):
             return emit('fillInfo')
 
         # если пришла ссылка
         if hh_links := extract_and_validate_hh_resume_link(data["content"]):
             emit('naitaAction', {'text': 'анализирует профиль на ХХ...'})
-            if cv_id := extract_hh_resume_id(hh_links[0]):
-                try:
-                    hh_cv = download.resume(cv_id)
-                    hh_cv = hh_parse.resume(hh_cv)
-
-                    # from pprint import pprint
-                    # pprint(hh_cv)
-
-                    if not (
-                    resume := Resume.query.filter(Resume.user == current_user.id, Resume.source == 'hh').first()):
-                        resume = Resume()
-                    resume.user = current_user.id
-                    resume.source = 'hh'
-                    resume.link = hh_links[0]
-
-                    resume.data = json.dumps({})
-                    if not resume in db.session:
-                        db.session.add(resume)
-                    db.session.commit()
-
-                    resume.data = hh_cv
-                    db.session.commit()
-                    message = Message()
-                    message.text = texts.RESUME_SAVED
-                    message.message_type = 'text'
-                    message.receiver_id = current_user.id
-                    db.session.add(message)
-                    db.session.commit()
-                    emit('response', {'message': texts.RESUME_SAVED, 'type': 'text'})
-                except Exception as e:
-                    logging.error('Не удалось сохранить резюме с ХХ')
-                    emit('response', {'message': texts.RESUME_NOT_SAVED, 'type': 'text'})
-            return
+            if save_hh_resume(hh_links[0]):
+                return emit('response', {'message': texts.RESUME_SAVED, 'type': 'text'})
+            return emit('response', {'message': texts.RESUME_NOT_SAVED, 'type': 'text'})
 
         emit('naitaAction', {'text': 'читает...'})
 
@@ -262,10 +219,17 @@ def handle_message_secure(data):
 
 @socketio.on('fillInfo', namespace='/secure_chat')
 def secure_chat_fill_info(data):
+    print(data)
     current_user.first_name = data.get('first_name', '')
     current_user.last_name = data.get('last_name', '')
     db.session.commit()
     # парсим резюме, если ссылка есть
+    if resume_link:=data.get('cv_link', None):
+        if save_hh_resume(resume_link):
+            emit('response', {'message': texts.RESUME_SAVED, 'type': 'text'})
+        else:
+            emit('response', {'message': texts.RESUME_NOT_SAVED, 'type': 'text'})
+
     emit('response', {'message': texts.welcome(current_user), 'type': 'text'})
 
 @socketio.on('delMyMessages', namespace='/secure_chat')
@@ -281,6 +245,7 @@ def del_messages_history():
     current_user.skills = ''
     current_user.education = ''
     current_user.profile_assessment = ''
+    current_user.profile_filled = False
 
     messages = Message.query.filter((Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)).all()
     for message in messages:
@@ -337,3 +302,34 @@ def extract_hh_resume_id(url):
     if match:
         return match.group(1)  # Возвращаем ID
     return None  # Если ID не найден
+
+def save_hh_resume(link):
+    if cv_id := extract_hh_resume_id(link):
+        try:
+            hh_cv = download.resume(cv_id)
+            hh_cv = hh_parse.resume(hh_cv)
+
+            if not (
+                    resume := Resume.query.filter(Resume.user == current_user.id, Resume.source == 'hh').first()):
+                resume = Resume()
+            resume.user = current_user.id
+            resume.source = 'hh'
+            resume.link = link
+
+            resume.data = json.dumps({})
+            if not resume in db.session:
+                db.session.add(resume)
+            db.session.commit()
+
+            resume.data = hh_cv
+            db.session.commit()
+            message = Message()
+            message.text = texts.RESUME_SAVED
+            message.message_type = 'text'
+            message.receiver_id = current_user.id
+            db.session.add(message)
+            db.session.commit()
+            return True
+        except Exception as e:
+            logging.error('Не удалось сохранить резюме с ХХ')
+    return False
