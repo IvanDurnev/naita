@@ -26,15 +26,15 @@ openai = OpenAI(api_key=Config.OPENAI_API_KEY)
 openai_proxy_client = OpenAIProxy()
 ya_gpt_client = YAGPT()
 
-@socketio.on('connect', namespace='/chat')
-def handle_connect():
-    if current_user.is_authenticated:
-        if current_user.first_name and current_user.last_name:
-            emit('response', {'message': texts.welcome(current_user), 'type': 'text'})
-        else:
-            emit('fillInfo')
-    else:
-        emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
+# @socketio.on('connect', namespace='/chat')
+# def handle_connect():
+#     if current_user.is_authenticated:
+#         if current_user.first_name and current_user.last_name:
+#             emit('response', {'message': texts.welcome(current_user), 'type': 'text'})
+#         else:
+#             emit('fillInfo')
+#     else:
+#         emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
 
 @socketio.on('connect', namespace='/secure_chat')
 def handle_connect_secure():
@@ -46,8 +46,12 @@ def handle_connect_secure():
     else:
         emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
 
-@socketio.on('disconnect', namespace='/chat')
-def handle_connect():
+# @socketio.on('disconnect', namespace='/chat')
+# def handle_disconnect():
+#     logging.info('Пользователь отключился')
+
+@socketio.on('disconnect', namespace='/secure_chat')
+def handle_disconnect_secure():
     logging.info('Пользователь отключился')
 
 @socketio.on('message', namespace='/chat')
@@ -165,18 +169,91 @@ def handle_message_secure(data):
     if current_user.is_authenticated:
         if not (current_user.first_name and current_user.last_name):
             return emit('fillInfo')
-        emit('reading')
+
+        # если пришла ссылка
+        if hh_links := extract_and_validate_hh_resume_link(data["content"]):
+            emit('naitaAction', {'text': 'анализирует профиль на ХХ...'})
+            if cv_id := extract_hh_resume_id(hh_links[0]):
+                try:
+                    hh_cv = download.resume(cv_id)
+                    hh_cv = hh_parse.resume(hh_cv)
+                    if not (
+                    resume := Resume.query.filter(Resume.user == current_user.id, Resume.source == 'hh').first()):
+                        resume = Resume()
+                    resume.user = current_user.id
+                    resume.source = 'hh'
+                    resume.link = hh_links[0]
+
+                    resume.data = json.dumps({})
+                    if not resume in db.session:
+                        db.session.add(resume)
+                    db.session.commit()
+
+                    resume.data = hh_cv
+                    db.session.commit()
+                    message = Message()
+                    message.text = texts.RESUME_SAVED
+                    message.message_type = 'text'
+                    message.receiver_id = current_user.id
+                    db.session.add(message)
+                    db.session.commit()
+                    emit('response', {'message': texts.RESUME_SAVED, 'type': 'text'})
+                except Exception as e:
+                    logging.error('Не удалось сохранить резюме с ХХ')
+                    emit('response', {'message': texts.RESUME_NOT_SAVED, 'type': 'text'})
+            return
+
+        emit('naitaAction', {'text': 'читает...'})
+
+        # если в сессии есть текущий id инфы о пользователе - записываем туда ответ пользователя
+        if ud_id:=session.get('current_user_data_id', None):
+            ud = UserData.query.get(int(ud_id))
+            ud.text = data["content"]
+            db.session.commit()
+
         # анализируем в Я ГПТ текст, разносим его по разным полям, возвращяем в JSON
         response = ya_gpt_client.completion(texts.clearing_and_isolating(data["content"])).replace("```", "").strip()
         if response:
+            emit('naitaAction', {'text': 'анализирует...'})
             data = json.loads(response)
-            current_user.add_user_data(data) # сохраняем данные о пользователе
-            emit('typing')
-            content = f'{data.get("secure_request", "")}\n\n{current_user.get_profile_txt()}'
-            response = openai_proxy_client.ask_assistant(content, current_user)
+            try:
+                current_user.add_user_data(data) # сохраняем данные о пользователе
+            except Exception as e:
+                logging.warning(f'Не удалось сохранить данные о пользователе. {e}')
+
+            # ya gpt проверяет, какой инфы не хватает у юзера
+            additional_info = json.loads(ya_gpt_client.completion(f'{texts.YA_GPT_DATA_REQUEST}\n\n{current_user.get_user_data()}').replace("```", "").strip())
+            # print(additional_info)
+            question = ''
+            if additional_info:
+                try:
+                    question = additional_info.get('question_text', '')
+                    ud = current_user.add_user_data_question(additional_info)
+                    session['current_user_data_id'] = str(ud)
+                except Exception as e:
+                    pass
+            else:
+                try:
+                    session.pop('current_user_data_id', None)
+                except Exception as e:
+                    pass
+            if additional_info.get('filled', False) or current_user.profile_filled:
+                if not current_user.profile_filled:
+                    current_user.profile_filled = True
+                    db.session.commit()
+                try:
+                    session.pop('current_user_data_id', None)
+                except Exception as e:
+                    pass
+                question = ''
+
+            emit('naitaAction', {'text': 'печатает...'})
+            content = f'Запрос: {data.get("secure_request", "")}\n\nПользователь: {current_user.get_user_data()}'
+            response = f'{openai_proxy_client.ask_assistant(content, current_user)}\n\n\n{question if question else ""}'.strip()
+
             emit_response({'message': response, 'type': 'text'})
     else:
-        emit('typing')
+        emit('naitaAction', {'text': 'печатает...'})
         emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
 
 @socketio.on('fillInfo', namespace='/secure_chat')
@@ -187,7 +264,7 @@ def secure_chat_fill_info(data):
     # парсим резюме, если ссылка есть
     emit('response', {'message': texts.welcome(current_user), 'type': 'text'})
 
-@socketio.on('delMyMessages', namespace='/chat')
+@socketio.on('delMyMessages', namespace='/secure_chat')
 def del_messages_history():
     current_user.first_name = ''
     current_user.second_name = ''

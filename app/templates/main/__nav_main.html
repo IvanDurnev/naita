@@ -16,9 +16,9 @@
                 <img src="{{ current_user.get_avatar() }}" width="50" height="50" style="border-radius: 50%" alt="User avatar">
                 <p style="margin: 0">Привет, {{ current_user.name }}!</p>
                 {% if current_user.is_authenticated %}
-                    {% if current_user.profile_complete() %}
-                        <a class="btn btn-lightgrey border-red" onclick="delMyMessages();"><i class="bi bi-trash"></i></a>
-                    {% endif %}
+{#                    {% if current_user.profile_complete() %}#}
+                    <a class="btn btn-lightgrey border-red" onclick="delMyMessages();"><i class="bi bi-trash"></i></a>
+{#                    {% endif %}#}
                 {% endif %}
                 <a class="btn btn-lightgrey" onclick="logout();"><i class="bi bi-box-arrow-in-right"></i></a>
             </div>

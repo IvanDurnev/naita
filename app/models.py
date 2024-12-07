@@ -52,6 +52,7 @@ class User(UserMixin, db.Model):
     skills = Column(Text, comment='Описание навыков', info={"check_unfilled": True, "question": "Напишите, пожалуйста, подробно ваши профессиональные навыки."}, default='')
     education = Column(Text, comment='Образования', info={"check_unfilled": True, "question": "Напишите, пожалуйста, какое у вас образование (учебное заведение, специальность, год окончания, ученая степень)?"}, default='')
     profile_assessment = Column(Text, default='')
+    profile_filled = Column(Boolean, default=False)
 
     # Отношения для полученных и отправленных сообщений
     sent_messages = db.relationship("Message", foreign_keys='Message.sender_id', back_populates="sender", cascade="all, delete-orphan")
@@ -93,6 +94,7 @@ class User(UserMixin, db.Model):
             return True
         return False
 
+    # deprecated
     def get_profile_txt(self):
         return f''' Профиль пользователя:
 Имя: {self.first_name or "-"},
@@ -113,9 +115,11 @@ class User(UserMixin, db.Model):
 {self.skills or "-"}
 '''
 
+    # deprecated
     def profile_complete(self):
         return self.first_name and self.second_name and self.last_name and self.phone and self.city and self.relocation_ready and self.remote_ready and self.education and self.professional_experience and self.skills
 
+    # deprecated
     def get_first_unfilled_field(self):
         """
         Возвращает имя первого незаполненного поля, помеченного в info={"check_unfilled": True}.
@@ -136,6 +140,7 @@ class User(UserMixin, db.Model):
 
         return None  # Все отмеченные поля заполнены
 
+    # deprecated
     def check_candidate_v1(self):
         assistant = openai.beta.assistants.retrieve(
             assistant_id=Config.OPENAI_GPT_ASSISTANT_ID
@@ -197,6 +202,16 @@ class User(UserMixin, db.Model):
         logging.error('Не удалось получить скрининг кандидата')
         return False
 
+    def get_user_data(self):
+        user_data = UserData.query.filter(UserData.user_id == self.id).all()
+        text = ''
+        for ud in user_data:
+            if ud.question:
+                text += f'{ud.type}: Вопрос: {ud.question} Ответ:{ud.text}\n'
+            else:
+                text += f'{ud.type}: {ud.text}\n'
+        return text
+
     def add_user_data(self, data):
         for key in data.keys():
             if key not in ['request', 'secure_request']:
@@ -207,6 +222,15 @@ class User(UserMixin, db.Model):
                     user_data.type = key
                     db.session.add(user_data)
                     db.session.commit()
+
+    def add_user_data_question(self, data):
+        user_data = UserData()
+        user_data.user_id = self.id
+        user_data.question = data.get('question_text', '')
+        user_data.type = data.get('variable', '')
+        db.session.add(user_data)
+        db.session.commit()
+        return user_data.id
 
 class Message(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -229,10 +253,12 @@ class Resume(db.Model):
     created = Column(DateTime, default=datetime.now)
     updated = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     source = Column(Text)
+    link = Column(Text)
 
 
 class UserData(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
+    question = Column(Text)
     text = Column(Text)
     user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
     type = Column(Text)
