@@ -204,12 +204,15 @@ class User(UserMixin, db.Model):
 
     def get_user_data(self):
         user_data = UserData.query.filter(UserData.user_id == self.id).all()
+        resumes = Resume.query.filter(Resume.user == self.id).all()
         text = ''
         for ud in user_data:
             if ud.question:
                 text += f'{ud.type}: Вопрос: {ud.question} Ответ:{ud.text}\n'
             else:
                 text += f'{ud.type}: {ud.text}\n'
+        for resume in resumes:
+            text += f'{json.dumps(resume.data, ensure_ascii=False)}\n'
         return text
 
     def add_user_data(self, data):

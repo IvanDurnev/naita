@@ -177,6 +177,10 @@ def handle_message_secure(data):
                 try:
                     hh_cv = download.resume(cv_id)
                     hh_cv = hh_parse.resume(hh_cv)
+
+                    # from pprint import pprint
+                    # pprint(hh_cv)
+
                     if not (
                     resume := Resume.query.filter(Resume.user == current_user.id, Resume.source == 'hh').first()):
                         resume = Resume()
