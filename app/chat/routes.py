@@ -24,7 +24,6 @@ from app.yagpt.yagpt import YAGPT
 
 openai = OpenAI(api_key=Config.OPENAI_API_KEY)
 openai_proxy_client = OpenAIProxy()
-ya_gpt_client = YAGPT()
 
 @socketio.on('connect', namespace='/secure_chat')
 def handle_connect_secure():
@@ -152,6 +151,7 @@ def handle_message(data):
 @socketio.on('message', namespace='/secure_chat')
 @outgoing_message
 def handle_message_secure(data):
+    ya_gpt_client = YAGPT()
     if current_user.is_authenticated:
         # нет первоначальной инфы - даем модалку для ввода имени, фамилии и ссылки на резюме
         if not (current_user.first_name and current_user.last_name):
@@ -219,7 +219,7 @@ def handle_message_secure(data):
 
 @socketio.on('fillInfo', namespace='/secure_chat')
 def secure_chat_fill_info(data):
-    print(data)
+    # print(data)
     current_user.first_name = data.get('first_name', '')
     current_user.last_name = data.get('last_name', '')
     db.session.commit()
