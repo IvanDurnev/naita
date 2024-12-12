@@ -34,6 +34,10 @@ main {
     justify-content: start!important;
 }
 
+.profile-filled {
+    border: 2px solid #C1FF05;
+}
+
 .custom-modal-header {
     display: grid;
     grid-template-columns: 1fr 1fr;

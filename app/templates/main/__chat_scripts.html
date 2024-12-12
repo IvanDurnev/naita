@@ -72,6 +72,10 @@
         assistantTyping.style.display = 'block';
     });
 
+    secureSocket.on('profile-filled', (event) => {
+        document.getElementById('user-avatar').classList.add('profile-filled')
+    })
+
     async function loadMessages() {
         const response = await fetch('messages', {method: 'GET'});
         const messages = await response.json();

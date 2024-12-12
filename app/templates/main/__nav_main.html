@@ -13,7 +13,7 @@
             </div>
         {% else %}
             <div id="user-info">
-                <img src="{{ current_user.get_avatar() }}" width="50" height="50" style="border-radius: 50%" alt="User avatar">
+                <img id="user-avatar" src="{{ current_user.get_avatar() }}" width="50" height="50" style="border-radius: 50%" alt="User avatar" {% if current_user.profile_filled %}class="profile-filled" {% endif %}>
                 <p style="margin: 0">Привет, {{ current_user.name }}!</p>
                 {% if current_user.is_authenticated %}
 {#                    {% if current_user.profile_complete() %}#}

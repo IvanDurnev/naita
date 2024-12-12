@@ -33,7 +33,7 @@ def handle_connect_secure():
         else:
             emit('fillInfo')
     else:
-        emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
+        emit('response', {'message': texts.HELLO_LOGOUT, 'type': 'text'})
 
 @socketio.on('disconnect', namespace='/secure_chat')
 def handle_disconnect_secure():
@@ -146,7 +146,7 @@ def handle_message(data):
             emit('response', {'message': response, 'type': 'text'})
         return
     else:
-        emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
+        emit('response', {'message': texts.HELLO_LOGOUT, 'type': 'text'})
 
 @socketio.on('message', namespace='/secure_chat')
 @outgoing_message
@@ -201,6 +201,7 @@ def handle_message_secure(data):
             if additional_info.get('filled', False) or current_user.profile_filled:
                 if not current_user.profile_filled:
                     current_user.profile_filled = True
+                    emit('profile-filled')
                     db.session.commit()
                 try:
                     session.pop('current_user_data_id', None)
@@ -212,16 +213,17 @@ def handle_message_secure(data):
             content = f'Запрос: {data.get("secure_request", "")}\n\nПользователь: {current_user.get_user_data()}'
             response = f'{openai_proxy_client.ask_assistant(content, current_user)}\n\n\n{question if question else ""}'.strip()
 
-            emit_response({'message': response, 'type': 'text'})
+            emit_response({'message': final_clean_text(response), 'type': 'text'})
     else:
         emit('naitaAction', {'text': 'печатает...'})
-        emit('response', {'message': texts.LOGIN_PLEASE, 'type': 'text'})
+        emit('response', {'message': texts.REGISTER_PLEASE, 'type': 'text'})
 
 @socketio.on('fillInfo', namespace='/secure_chat')
 def secure_chat_fill_info(data):
     # print(data)
     current_user.first_name = data.get('first_name', '')
     current_user.last_name = data.get('last_name', '')
+    current_user.pers_data_consent = True
     db.session.commit()
     # парсим резюме, если ссылка есть
     if resume_link:=data.get('cv_link', None):
@@ -254,6 +256,10 @@ def del_messages_history():
     user_data = UserData.query.filter(UserData.user_id == current_user.id).all()
     for ud in user_data:
         db.session.delete(ud)
+
+    resumes = Resume.query.filter(Resume.user == current_user.id).all()
+    for resume in resumes:
+        db.session.delete(resume)
 
     db.session.commit()
     emit('response', {'message': 'Перезагрузи страницу', 'type': 'text'})
@@ -333,3 +339,12 @@ def save_hh_resume(link):
         except Exception as e:
             logging.error('Не удалось сохранить резюме с ХХ')
     return False
+
+def final_clean_text(text):
+    # Используем регулярное выражение для удаления вхождений
+    cleaned_content = re.sub(r'\u3010.*?\u3011', '', text)
+
+    # Удаляем сами символы 【 и 】
+    cleaned_content = re.sub(r'[\u3010\u3011]', '', cleaned_content)
+
+    return cleaned_content

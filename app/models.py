@@ -28,6 +28,7 @@ class User(UserMixin, db.Model):
     name = Column(Text, nullable=False, default='')
     email = Column(Text, nullable=False, unique=True)
     sex = Column(Text)
+    pers_data_consent = Column(Boolean, default=False)
     birthday = Column(Text)
     vk_user_id = Column(BIGINT)
     vk_first_name = Column(Text)
