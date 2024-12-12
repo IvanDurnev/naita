@@ -6,7 +6,7 @@ from flask_socketio import emit, join_room, leave_room
 from sqlalchemy.testing.plugin.plugin_base import logging
 from sqlalchemy.testing.suite.test_reflection import users
 from app import socketio, login, Config, db
-from app.models import Message, Resume, outgoing_message, incoming_message, UserData
+from app.models import Message, Resume, outgoing_message, incoming_message, UserData, Vacancy, UserVacancy
 from app.chat import bp as chat_bp
 from app.chat import texts
 from app.chat.openai_proxy import OpenAIProxy
@@ -20,6 +20,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.sqltypes import Boolean
 from parse_hh_data import download, parse as hh_parse
 from app.yagpt.yagpt import YAGPT
+import threading
 
 
 openai = OpenAI(api_key=Config.OPENAI_API_KEY)
@@ -209,6 +210,10 @@ def handle_message_secure(data):
                     pass
                 question = ''
 
+                if not current_user.coincidences_done:
+                    get_vacancies_coincidences()
+                    emit('coincidences-done')
+
             emit('naitaAction', {'text': 'печатает...'})
             content = f'Запрос: {data.get("secure_request", "")}\n\nПользователь: {current_user.get_user_data()}'
             response = f'{openai_proxy_client.ask_assistant(content, current_user)}\n\n\n{question if question else ""}'.strip()
@@ -248,6 +253,7 @@ def del_messages_history():
     current_user.education = ''
     current_user.profile_assessment = ''
     current_user.profile_filled = False
+    current_user.coincidences_done = False
 
     messages = Message.query.filter((Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)).all()
     for message in messages:
@@ -348,3 +354,59 @@ def final_clean_text(text):
     cleaned_content = re.sub(r'[\u3010\u3011]', '', cleaned_content)
 
     return cleaned_content
+
+def get_vacancies_coincidences():
+    vacansies_list = [v.get_json() for v in Vacancy.query.all()]
+    user_info = current_user.get_user_data()
+
+    prompt = f'''Посмотри информацию об открытых вакансиях:
+{vacansies_list}
+    
+Посмотри информацию обо мне:
+{user_info}
+
+На какие из вакансий я подхожу и с каким уровнем соответствия по шкале от 1 до 10?
+
+Верни ответ в виде массива JSON объектов:
+[
+{{"vid": id вакансии,
+"name": название вакансии,
+"value": оценка соответствия меня вакансии по шкале от 1 до 10,
+"positive": объяснение почему я соответствую этой вакансии,
+"negative": объяснение чего мне не хватает для полного соответствия этой вакансии}}
+]
+
+Обращайся ко мне на ты.
+    '''
+
+    thread = threading.Thread(target=get_vacancies_coincidences_background, args=(prompt, current_user.id, ))
+    thread.start()
+    return
+
+def get_vacancies_coincidences_background(prompt, uid):
+    from app import create_app
+    ya_gpt_client = YAGPT()
+    response = ya_gpt_client.completion(prompt).replace("```", "").strip()
+
+    if response:
+        coincidences = json.loads(response)
+
+        with create_app(Config).app_context():
+            for c in coincidences:
+                try:
+                    user_vacancy = UserVacancy()
+                    user_vacancy.vacancy_id = c['vid']
+                    user_vacancy.user_id = uid
+                    user_vacancy.positive = c['positive']
+                    user_vacancy.negative = c['negative']
+                    user_vacancy.value = int(c['value'])
+                    db.session.add(user_vacancy)
+                    db.session.commit()
+                except Exception as e:
+                    logging.error(f'Не удалось сохранить соответствие вакансии пользователю {uid}, {e}')
+            user: User = User.query.get(uid)
+            user.coincidences_done = True
+            db.session.commit()
+            logging.info(f'Для пользователя {uid} сохранены соответствия вакансиям')
+            return
+    logging.info(f'Для пользователя {uid} не удалось сохранить соответствие вакансиям.')

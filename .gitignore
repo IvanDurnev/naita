@@ -9,3 +9,4 @@ flask_session/
 app/static/credentials/
 app/static/images/
 app/static/users/
+app/static/knowledge_base/

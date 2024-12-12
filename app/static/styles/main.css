@@ -35,6 +35,10 @@ main {
 }
 
 .profile-filled {
+    border: 2px solid #E8EBF2;
+}
+
+.coincidences-done {
     border: 2px solid #C1FF05;
 }
 

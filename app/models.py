@@ -54,6 +54,7 @@ class User(UserMixin, db.Model):
     education = Column(Text, comment='Образования', info={"check_unfilled": True, "question": "Напишите, пожалуйста, какое у вас образование (учебное заведение, специальность, год окончания, ученая степень)?"}, default='')
     profile_assessment = Column(Text, default='')
     profile_filled = Column(Boolean, default=False)
+    coincidences_done = Column(Boolean, default=False)
 
     # Отношения для полученных и отправленных сообщений
     sent_messages = db.relationship("Message", foreign_keys='Message.sender_id', back_populates="sender", cascade="all, delete-orphan")
@@ -61,6 +62,9 @@ class User(UserMixin, db.Model):
 
     # Отношение для данных пользователя
     user_data = db.relationship("UserData", foreign_keys='UserData.user_id', back_populates="user", cascade="all, delete-orphan")
+
+    # Отношение для вакансий подходящих пользователю
+    vacancies = db.relationship("Vacancy", secondary="user_vacancy", back_populates="users")
 
     def get_avatar(self):
         avatar_path = os.path.join(Config.STATIC_FOLDER, 'users', str(self.id), 'avatar.jpg')
@@ -249,7 +253,6 @@ class Message(db.Model):
     sender = db.relationship("User", foreign_keys=[sender_id])
     receiver = db.relationship("User", foreign_keys=[receiver_id])
 
-
 class Resume(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
@@ -258,7 +261,6 @@ class Resume(db.Model):
     updated = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     source = Column(Text)
     link = Column(Text)
-
 
 class UserData(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -270,6 +272,26 @@ class UserData(db.Model):
 
     user = db.relationship("User", foreign_keys=[user_id])
 
+class Vacancy(db.Model):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text)
+    description = Column(Text)
+
+    # Реляция "многие-ко-многим" с User через UserVacancy
+    users = db.relationship("User", secondary="user_vacancy", back_populates="vacancies")
+
+    def get_json(self):
+        return {'id': self.id, 'name': self.name, 'description': self.description}
+
+
+class UserVacancy(db.Model):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
+    vacancy_id = Column(Integer, ForeignKey('vacancy.id', ondelete='CASCADE'))
+    value = Column(Integer)
+    positive = Column(Text)
+    negative = Column(Text)
+    created = Column(DateTime, default=datetime.now)
 
 # Декоратор для сохранения исходящего сообщения в базе данных
 def outgoing_message(func):

@@ -76,6 +76,11 @@
         document.getElementById('user-avatar').classList.add('profile-filled')
     })
 
+    secureSocket.on('coincidences-done', (event) => {
+        document.getElementById('user-avatar').classList.remove('profile-filled')
+        document.getElementById('user-avatar').classList.add('coincidences-done')
+    })
+
     async function loadMessages() {
         const response = await fetch('messages', {method: 'GET'});
         const messages = await response.json();
