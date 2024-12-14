@@ -41,6 +41,8 @@ def handle_disconnect_secure():
 @outgoing_message
 def handle_message_secure(data):
     if current_user.is_authenticated:
+        if data.get('disableAnswer'):
+            return
         ya_gpt_client = YAGPT()
         emitNaitaAction('читает...')
 
@@ -169,15 +171,15 @@ def del_messages_history():
 
 @socketio.on('messageBtnClick', namespace='/secure_chat')
 def handle_message_btn_click(data):
-    # ответить пользователю обязательный текст
-    emit('response', {'text': texts.VACANCY_SELECTED, 'type': 'text', 'disable_input': True})
-
     message: Message = Message.query.get(int(data['mid']))
     message.btns = None
     db.session.commit()
     emit('messageBtnClickReceived', {'mid': message.id})
+
     if callback:=data.get('callback'):
         if callback == 'vacancy':
+            # ответить пользователю обязательный текст
+            emit('response', {'text': texts.VACANCY_SELECTED, 'type': 'text', 'disable_input': True})
             vacancy = Vacancy.query.filter(Vacancy.name == data.get('text')).first()
             user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
                                                     UserVacancy.vacancy_id == vacancy.id).first()
@@ -188,6 +190,22 @@ def handle_message_btn_click(data):
                 db.session.add(user_vacancy)
             user_vacancy.is_main = True
             db.session.commit()
+        if callback == 'check_another_vacancies':
+            if data.get('text') in ['да', 'Да', 'ДА']:
+                get_vacancies_coincidences()
+        if callback == 'new_main_vacancy':
+            emit('response', {'text': texts.NEW_VACANCY_SELECTED, 'type': 'text', 'disable_input': True})
+            vacancy = Vacancy.query.filter(Vacancy.name == data.get('text')).first()
+            user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
+                                                    UserVacancy.vacancy_id == vacancy.id).first()
+            user_vacancy.is_main = True
+            db.session.commit()
+
+
+@socketio.on('testFun', namespace='/secure_chat')
+def test_fun(data):
+    # get_vacancies_coincidences()
+    print(data)
 
 @chat_bp.get('/messages')
 def messages_history():
@@ -206,6 +224,7 @@ def messages_history():
                 'text': message.text,
                 'content': message.content,
                 'callback': message.callback,
+                'disable_answer': message.disable_answer,
                 'btns': message.btns,
                 'sent': message.sent.isoformat() if message.sent else None
             }
@@ -319,9 +338,9 @@ def get_main_vacancy_coincidence():
         current_user.coincidences_done = True
         db.session.commit()
 
-        return send_main_vacancy_coincidence_analitics_result(user_vacancy)
+        return send_main_vacancy_coincidence_analytics_result(user_vacancy)
 
-def send_main_vacancy_coincidence_analitics_result(user_vacancy):
+def send_main_vacancy_coincidence_analytics_result(user_vacancy):
     emit_response({
         'text': f'##### Результаты анализа\n\n###### Положительные стороны:\n{user_vacancy.positive}\n\n###### Отрицательные нюансы:\n{user_vacancy.negative}',
         'type': 'text',
@@ -337,13 +356,32 @@ def send_main_vacancy_coincidence_analitics_result(user_vacancy):
             'text': texts.main_vacancy_coincedence_analysis_fail(current_user, user_vacancy),
             'type': 'text'
         })
+        emit_response({
+            'text': texts.SUGGEST_TO_CHECK_ANOTHER_VACANCIES,
+            'type': 'text',
+            'btns': ['Да', 'Нет'],
+            'callback': 'check_another_vacancies',
+            'disable_answer': True
+        })
 
 def get_vacancies_coincidences():
-    vacansies_list = [v.get_json() for v in Vacancy.query.all()]
+    ya_gpt_client = YAGPT()
+    # удалить прошлые анализы
+    user_vacancies = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
+                                              UserVacancy.is_main.is_not(True)
+                                              ).all()
+    for uv in user_vacancies:
+        db.session.delete(uv)
+    db.session.commit()
+
+    emitNaitaAction('анализирует соответствие кандидата другим вакансиям...')
+    main_vacancy = current_user.get_main_vacancy().get_json()
+    vacancies_list = [v.get_json() for v in Vacancy.query.filter(Vacancy.id != main_vacancy['id']).all()]
+
     user_info = current_user.get_user_data()
 
     prompt = f'''Посмотри информацию об открытых вакансиях:
-{vacansies_list}
+{vacancies_list}
     
 Посмотри информацию обо мне:
 {user_info}
@@ -355,45 +393,112 @@ def get_vacancies_coincidences():
 {{"vid": id вакансии,
 "name": название вакансии,
 "value": оценка соответствия меня вакансии по шкале от 1 до 10,
-"positive": объяснение почему я соответствую этой вакансии,
-"negative": объяснение чего мне не хватает для полного соответствия этой вакансии}}
+"positive": объяснение почему я соответствую этой вакансии (в формате markdown),
+"negative": объяснение чего мне не хватает для полного соответствия этой вакансии (в формате markdown),
+"recommendations": рекомендации на будущее (в формате markdown)}}
 ]
 
 Обращайся ко мне на ты.
     '''
 
-    thread = threading.Thread(target=get_vacancies_coincidences_background, args=(prompt, current_user.id, ))
-    thread.start()
-    return
-
-def get_vacancies_coincidences_background(prompt, uid):
-    from app import create_app
-    ya_gpt_client = YAGPT()
     response = ya_gpt_client.completion(prompt).replace("```", "").strip()
-
     if response:
         coincidences = json.loads(response)
 
-        with create_app(Config).app_context():
-            for c in coincidences:
-                try:
-                    user_vacancy = UserVacancy()
-                    user_vacancy.vacancy_id = c['vid']
-                    user_vacancy.user_id = uid
-                    user_vacancy.positive = c['positive']
-                    user_vacancy.negative = c['negative']
-                    user_vacancy.value = int(c['value'])
-                    db.session.add(user_vacancy)
-                    db.session.commit()
-                except Exception as e:
-                    logging.error(f'Не удалось сохранить соответствие вакансии пользователю {uid}, {e}')
-            user: User = User.query.get(uid)
-            user.coincidences_done = True
-            db.session.commit()
-            logging.info(f'Для пользователя {uid} сохранены соответствия вакансиям')
-            return
-    logging.info(f'Для пользователя {uid} не удалось сохранить соответствие вакансиям.')
+        for c in coincidences:
+            try:
+                user_vacancy = UserVacancy()
+                user_vacancy.vacancy_id = c['vid']
+                user_vacancy.user_id = current_user.id
+                user_vacancy.positive = c['positive']
+                user_vacancy.negative = c['negative']
+                user_vacancy.recommendations = c['recommendations']
+                user_vacancy.value = int(c['value'])
+                db.session.add(user_vacancy)
+                db.session.commit()
+            except Exception as e:
+                logging.error(f'Не удалось сохранить соответствие вакансии пользователю {current_user.id}, {e}')
+
+    return send_vacancies_coincidences_analytics_result()
+
+def send_vacancies_coincidences_analytics_result():
+    user_vacancies = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
+                                              UserVacancy.is_main.is_not(True),
+                                              UserVacancy.value >= Config.MIN_COINCEDENCE_VALUE
+                                              ).all()
+    if not user_vacancies:
+        return emit_response({
+            'text': texts.THERES_NO_ANY_VACANCY_FOR_YOU,
+            'type': 'text',
+            'disabled_input': True
+        })
+
+    text = 'Ты можешь быть рассмотрен как кандидат на следующие вакансии:\n\n'
+    if len(user_vacancies) == 1:
+        text = 'Ты можешь быть рассмотрен как кандидат на следующую вакансию:\n\n'
+
+    for uv in user_vacancies:
+        text += f'##### {str(uv.get_vacancy().name)}\n\n###### Положительные стороны:\n{str(uv.positive)}\n\n###### Отрицательные нюансы:\n{str(uv.negative)}\n\n###### Рекомендации:\n{str(uv.recommendations)}\n\n'
+
+    text += 'Нажми под сообщением на кнопку с названием вакансии, по которой ты хочешь поговорить с HR 👇🏻'
+
+    emit_response({
+        'text': text,
+        'type': 'text',
+        'disabled_input': True,
+        'btns': [str(uv.get_vacancy().name) for uv in user_vacancies],
+        'callback': 'new_main_vacancy',
+        'disable_answer': True
+    })
+
+    # if user_vacancy.value >= Config.MIN_COINCEDENCE_VALUE:
+    #     emit_response({
+    #         'text': texts.main_vacancy_coincedence_analysis_success(current_user),
+    #         'type': 'text'
+    #     })
+    # else:
+    #     emit_response({
+    #         'text': texts.main_vacancy_coincedence_analysis_fail(current_user, user_vacancy),
+    #         'type': 'text'
+    #     })
+    #     emit_response({
+    #         'text': texts.SUGGEST_TO_CHECK_ANOTHER_VACANCIES,
+    #         'type': 'text',
+    #         'btns': ['Да', 'Нет'],
+    #         'callback': 'check_another_vacancies',
+    #         'disable_answer': True
+    #     })
 
 def emit_vacancies_menu():
     vacancies = [v.name for v in Vacancy.query.all()]
     return emit_response({'text': texts.SELECT_VACANCIES, 'type': 'text', 'btns': vacancies, 'callback': 'vacancy'})
+
+
+# def get_vacancies_coincidences_background(prompt, uid):
+#     from app import create_app
+#     ya_gpt_client = YAGPT()
+#     response = ya_gpt_client.completion(prompt).replace("```", "").strip()
+#
+#     if response:
+#         coincidences = json.loads(response)
+#
+#         with create_app(Config).app_context():
+#             for c in coincidences:
+#                 try:
+#                     user_vacancy = UserVacancy()
+#                     user_vacancy.vacancy_id = c['vid']
+#                     user_vacancy.user_id = uid
+#                     user_vacancy.positive = c['positive']
+#                     user_vacancy.negative = c['negative']
+#                     user_vacancy.value = int(c['value'])
+#                     db.session.add(user_vacancy)
+#                     db.session.commit()
+#                 except Exception as e:
+#                     logging.error(f'Не удалось сохранить соответствие вакансии пользователю {uid}, {e}')
+#             user: User = User.query.get(uid)
+#             user.coincidences_done = True
+#             db.session.commit()
+#             logging.info(f'Для пользователя {uid} сохранены соответствия вакансиям')
+#             return
+#     logging.info(f'Для пользователя {uid} не удалось сохранить соответствие вакансиям.')
+

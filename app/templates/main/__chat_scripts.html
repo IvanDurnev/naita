@@ -104,7 +104,7 @@
     }
 
     // Отправка текстового сообщения
-    function sendMessage() {
+    function sendMessage(disableAnswer=false) {
         const message = inputMessage.value.trim();
         $(chatInput).attr('disabled', true);
         $(chatInput).find('textarea, input, select, button').blur();
@@ -116,7 +116,13 @@
                 filePreview.textContent = '';
             } else {
                 appendMessage({ type: 'text', text: message, sender_id: 'user', callback: currentCallback, email: userEmail});
-                secureSocket.send({ type: 'text', content: message , callback: currentCallback, email: userEmail});
+                secureSocket.send({
+                    type: 'text',
+                    content: message,
+                    callback: currentCallback,
+                    email: userEmail,
+                    disableAnswer: disableAnswer
+                });
             }
             inputMessage.value = '';
         }
@@ -157,6 +163,7 @@
         let messageType = message.sender_id ? 'outgoing' : 'incoming'
         let messageButtons = message.btns
         let messageCallback = message.callback
+        let disableAnswer = message.disable_answer
 
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', messageType);
@@ -175,6 +182,10 @@
                 if (messageCallback) {
                     btnElement.setAttribute('data-callback', messageCallback)
                 }
+                if (disableAnswer) {
+                    btnElement.setAttribute('data-disableAnswer', disableAnswer)
+                }
+
                 const btnTextPreElement = document.createElement('pre');
                 const btnTextElement = document.createElement('p');
                 btnElement.classList.add('message', 'incoming', 'message-btn');
@@ -257,13 +268,19 @@
     }
 
     function btnMessage(e) {
+        let disableAnswer = false
+        if (e.currentTarget.dataset.disableanswer)
+            disableAnswer = true
         secureSocket.emit('messageBtnClick', {
             mid: e.currentTarget.dataset.mid,
             callback: e.currentTarget.dataset.callback,
-            text: e.currentTarget.querySelector('p').textContent,
-        });
+            disableAnswer: disableAnswer,
+            text: e.currentTarget.querySelector('p').textContent});
         inputMessage.value = e.currentTarget.querySelector('p').textContent;
-        sendBtn.click();
+        sendMessage(disableAnswer);
+    }
 
+    function testFun() {
+        secureSocket.emit('testFun', {});
     }
 </script>

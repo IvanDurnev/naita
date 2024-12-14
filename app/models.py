@@ -254,6 +254,7 @@ class Message(db.Model):
     content = Column(JSONB)
     btns = Column(JSONB)
     callback = Column(Text)
+    disable_answer = Column(Boolean, default=False)
     sent = Column(DateTime, default=datetime.now)
 
     sender = db.relationship("User", foreign_keys=[sender_id])
@@ -335,6 +336,8 @@ def incoming_message(func):
                 message.btns = data['btns']
             if 'callback' in data:
                 message.callback = data['callback']
+            if 'disable_answer' in data:
+                message.disable_answer = data['disable_answer']
             message.receiver_id = current_user.id
             db.session.add(message)
             db.session.commit()
