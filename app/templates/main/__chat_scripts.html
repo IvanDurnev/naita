@@ -26,8 +26,8 @@
     let fileToSend = null;
 
     secureSocket.on('connect', () => {
-        $(chatInput).removeAttr('disabled');
         loadMessages();
+        $(chatInput).removeAttr('disabled');
     });
     secureSocket.on('disconnect', () => {
         $(chatInput).prop('disabled', true);
@@ -38,12 +38,14 @@
 
     function socketMessageResponse(event) {
         assistantTyping.style.display = 'none';
-        $(chatInput).removeAttr('disabled');
-        $(chatInput).find('textarea').focus();
+        if (!event.disable_input) {
+            $(chatInput).removeAttr('disabled');
+            $(chatInput).find('textarea').focus();
+        }
         if (event.type === 'text') {
-            appendMessage(event.message, 'incoming');
+            appendMessage(event);
         } else if (event.type === 'file') {
-            appendMessageWithFile({ name: event.fileName, type: event.contentType || 'application/octet-stream', data: event.content }, event.comment, 'incoming');
+            {#appendMessageWithFile({ name: event.fileName, type: event.contentType || 'application/octet-stream', data: event.content }, event.comment, 'incoming');#}
         }
         currentCallback = event.callback;
         userEmail = event.email
@@ -81,14 +83,22 @@
         document.getElementById('user-avatar').classList.add('coincidences-done')
     })
 
+    secureSocket.on('messageBtnClickReceived', (event) => {
+        let btns = document.querySelectorAll(`.message-btn[data-mid="${event.mid}"]`)
+        btns.forEach(btn => {
+            btn.remove()
+        })
+    });
+
     async function loadMessages() {
+        $(messagesContainer).empty();
         const response = await fetch('messages', {method: 'GET'});
         const messages = await response.json();
         messages.forEach(message => {
-            if (message.message_type === 'text') {
-                appendMessage(message.text, message.sender_id ? 'outgoing' : 'incoming');
+            if (message.type === 'text') {
+                appendMessage(message);
             } else if (message.type === 'file') {
-                appendMessageWithFile({ name: message.fileName, type: message.contentType || 'application/octet-stream', data: message.content }, message.comment, 'incoming');
+                {#appendMessageWithFile({ name: message.fileName, type: message.contentType || 'application/octet-stream', data: message.content }, message.comment, 'incoming');#}
             }
         });
     }
@@ -105,7 +115,7 @@
                 fileToSend = null;
                 filePreview.textContent = '';
             } else {
-                appendMessage(message, 'outgoing');
+                appendMessage({ type: 'text', text: message, sender_id: 'user', callback: currentCallback, email: userEmail});
                 secureSocket.send({ type: 'text', content: message , callback: currentCallback, email: userEmail});
             }
             inputMessage.value = '';
@@ -142,15 +152,40 @@
     });
 
     // Функция добавления сообщения в интерфейс чата
-    function appendMessage(content, type) {
+    function appendMessage(message) {
+        let messageText = message.text
+        let messageType = message.sender_id ? 'outgoing' : 'incoming'
+        let messageButtons = message.btns
+        let messageCallback = message.callback
+
         const messageElement = document.createElement('div');
-        messageElement.classList.add('message', type);
+        messageElement.classList.add('message', messageType);
+        messageElement.setAttribute('data-mid', message.id);
         const textElement = document.createElement('pre');
 
-        textElement.innerHTML = md.render(content);
+        textElement.innerHTML = md.render(messageText);
 
         messageElement.appendChild(textElement);
         messagesContainer.appendChild(messageElement);
+
+        if (messageButtons) {
+            messageButtons.forEach(btnText => {
+                const btnElement = document.createElement('div');
+                btnElement.setAttribute('data-mid', message.id);
+                if (messageCallback) {
+                    btnElement.setAttribute('data-callback', messageCallback)
+                }
+                const btnTextPreElement = document.createElement('pre');
+                const btnTextElement = document.createElement('p');
+                btnElement.classList.add('message', 'incoming', 'message-btn');
+                btnTextElement.textContent = btnText;
+                btnElement.addEventListener('click', btnMessage);
+                btnTextPreElement.appendChild(btnTextElement);
+                btnElement.appendChild(btnTextPreElement);
+                messagesContainer.appendChild(btnElement);
+            });
+        }
+
         window.scrollTo({
             top: document.body.scrollHeight,
             behavior: 'smooth'
@@ -207,7 +242,6 @@
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    // Удалить всю переписку
     function delMyMessages() {
         secureSocket.emit('delMyMessages');
     }
@@ -220,5 +254,16 @@
             cv_link: document.querySelector('#cv-link').value,
         });
         fillInfoModal.hide();
+    }
+
+    function btnMessage(e) {
+        secureSocket.emit('messageBtnClick', {
+            mid: e.currentTarget.dataset.mid,
+            callback: e.currentTarget.dataset.callback,
+            text: e.currentTarget.querySelector('p').textContent,
+        });
+        inputMessage.value = e.currentTarget.querySelector('p').textContent;
+        sendBtn.click();
+
     }
 </script>

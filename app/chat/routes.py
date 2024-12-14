@@ -1,26 +1,20 @@
-import json
-
-from flask import request, jsonify, session, Response
-from flask_login import current_user, login_user
-from flask_socketio import emit, join_room, leave_room
-from sqlalchemy.testing.plugin.plugin_base import logging
-from sqlalchemy.testing.suite.test_reflection import users
-from app import socketio, login, Config, db
 from app.models import Message, Resume, outgoing_message, incoming_message, UserData, Vacancy, UserVacancy
+from flask import request, jsonify, session, Response
+from flask_login import current_user
+from flask_socketio import emit
+from sqlalchemy.testing.plugin.plugin_base import logging
+from app import socketio, Config, db
 from app.chat import bp as chat_bp
 from app.chat import texts
 from app.chat.openai_proxy import OpenAIProxy
 from app.models import User
-import random
 import logging
-# from time import sleep, thread_time
 from openai import OpenAI
-import re
-from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.sql.sqltypes import Boolean
 from parse_hh_data import download, parse as hh_parse
 from app.yagpt.yagpt import YAGPT
 import threading
+import json
+import re
 
 
 openai = OpenAI(api_key=Config.OPENAI_API_KEY)
@@ -30,153 +24,51 @@ openai_proxy_client = OpenAIProxy()
 def handle_connect_secure():
     if current_user.is_authenticated:
         if current_user.first_name and current_user.last_name:
-            emit('response', {'message': texts.welcome(current_user), 'type': 'text'})
+            if not current_user.get_main_vacancy():
+                return emit_vacancies_menu()
+            else:
+                emit('response', {'text': texts.welcome(current_user), 'type': 'text'})
         else:
             emit('fillInfo')
     else:
-        emit('response', {'message': texts.HELLO_LOGOUT, 'type': 'text'})
+        emit('response', {'text': texts.HELLO_LOGOUT, 'type': 'text'})
 
 @socketio.on('disconnect', namespace='/secure_chat')
 def handle_disconnect_secure():
     logging.info('Пользователь отключился')
 
-@socketio.on('message', namespace='/chat')
-def handle_message(data):
-    message_type = data.get('type', '')
-    message_text = data.get('content', '')
-    message_callback = data.get('callback', '')
-    email = data.get('email', '')
-    if current_user.is_authenticated:
-        message = Message()
-        message.text = message_text
-        message.message_type = message_type
-        message.sender_id = current_user.id
-        db.session.add(message)
-        db.session.commit()
-
-        # если пришла ссылка
-        if hh_links:=extract_and_validate_hh_resume_link(message_text):
-            emit('hh_resume_reviewing')
-            if cv_id:=extract_hh_resume_id(hh_links[0]):
-                try:
-                    hh_cv = download.resume(cv_id)
-                    hh_cv = hh_parse.resume(hh_cv)
-                    if not (resume:=Resume.query.filter(Resume.user==current_user.id, Resume.source=='hh').first()):
-                        resume = Resume()
-                    resume.user = current_user.id
-                    resume.source = 'hh'
-
-                    resume.data = json.dumps({})
-                    if not resume in db.session:
-                        db.session.add(resume)
-                    db.session.commit()
-
-                    resume.data = hh_cv
-                    db.session.commit()
-                    message = Message()
-                    message.text = texts.RESUME_SAVED
-                    message.message_type = 'text'
-                    message.receiver_id = current_user.id
-                    db.session.add(message)
-                    db.session.commit()
-                    emit('response', {'message': texts.RESUME_SAVED, 'type': 'text'})
-                except Exception as e:
-                    logging.error('Не удалось сохранить резюме с ХХ')
-                    emit('response', {'message': texts.RESUME_NOT_SAVED, 'type': 'text'})
-            return
-
-        emit('typing')
-
-        # если в сообщении пришел callback
-        if message_callback:
-            if attr:=getattr(User, message_callback, None):
-                try:
-                    setattr(current_user, message_callback, message_text)
-                    db.session.commit()
-                except Exception as e:
-                    db.session.rollback()
-                    message = Message()
-                    message.text = 'ваш ответ не понятен, напишите еще раз, пожалуйста'
-                    message.message_type = 'text'
-                    message.receiver_id = current_user.id
-                    message.callback = message_callback
-                    db.session.add(message)
-                    db.session.commit()
-                    emit('response', {'message': 'ваш ответ не понятен, напишите еще раз, пожалуйста', 'type': 'text', 'callback': message_callback})
-                    logging.warning(f'Не удалось сохранить данные пользователя: поле {message_callback}, данные: {message_text}.\n {e}')
-
-        # проверяем, что у пользователя заполнен профиль.
-        # если не заполнен запрашиваем данные
-        if field:=current_user.get_first_unfilled_field():
-            message = Message()
-            message.text = field.get('question')
-            message.message_type = 'text'
-            message.receiver_id = current_user.id
-            message.callback = field.get('field')
-            db.session.add(message)
-            db.session.commit()
-            return emit('response', {'message': field.get('question'), 'type': 'text', 'callback': field.get('field')})
-
-        # если заполнен - передаем запрос в AI
-        # если профиль заполнен и не проведен скрининг - проводим скрининг
-        if not current_user.profile_assessment:
-            emit('analytics')
-            # response = current_user.check_candidate_v1()
-            response = current_user.check_candidate_v2()
-            emit('response', {'message': response, 'type': 'text'})
-            return Response(status=200)
-
-        # тут обрабатываем входящее сообщение в зависимости от типа: текст или файл+-текст
-
-        assistant_id = Config.OPENAI_GPT_ASSISTANT_ID
-        thread_id = current_user.gpt_thread
-        if not thread_id:
-            thread_id = openai_proxy_client.create_thread()
-            current_user.gpt_thread = thread_id
-            db.session.commit()
-        content = message_text + f'\n\n{current_user.get_profile_txt()}'
-
-        response = openai_proxy_client.ask_assistant(assistant_id, content, thread_id)
-        if response:
-            message = Message()
-            message.text = response
-            message.message_type = 'text'
-            message.receiver_id = current_user.id
-            db.session.add(message)
-            db.session.commit()
-            emit('response', {'message': response, 'type': 'text'})
-        return
-    else:
-        emit('response', {'message': texts.HELLO_LOGOUT, 'type': 'text'})
-
 @socketio.on('message', namespace='/secure_chat')
 @outgoing_message
 def handle_message_secure(data):
-    ya_gpt_client = YAGPT()
     if current_user.is_authenticated:
-        # нет первоначальной инфы - даем модалку для ввода имени, фамилии и ссылки на резюме
+        ya_gpt_client = YAGPT()
+        emitNaitaAction('читает...')
+
+        # нет первоначальной информации - даем модальное окно для ввода имени, фамилии и ссылки на резюме
         if not (current_user.first_name and current_user.last_name):
             return emit('fillInfo')
+
+        # если у пользователя нет текущей вакансии
+        if not current_user.get_main_vacancy():
+            return emit_vacancies_menu()
 
         # если пришла ссылка
         if hh_links := extract_and_validate_hh_resume_link(data["content"]):
             emit('naitaAction', {'text': 'анализирует профиль на ХХ...'})
             if save_hh_resume(hh_links[0]):
-                return emit('response', {'message': texts.RESUME_SAVED, 'type': 'text'})
-            return emit('response', {'message': texts.RESUME_NOT_SAVED, 'type': 'text'})
+                return emit('response', {'text': texts.RESUME_SAVED, 'type': 'text'})
+            return emit('response', {'text': texts.RESUME_NOT_SAVED, 'type': 'text'})
 
-        emit('naitaAction', {'text': 'читает...'})
-
-        # если в сессии есть текущий id инфы о пользователе - записываем туда ответ пользователя
+        # если в сессии есть текущий id информации о пользователе - записываем туда ответ пользователя
         if ud_id:=session.get('current_user_data_id', None):
             ud = UserData.query.get(int(ud_id))
             ud.text = data["content"]
             db.session.commit()
 
-        # анализируем в Я ГПТ текст, разносим его по разным полям, возвращяем в JSON
+        # анализируем в Я ГПТ текст, разносим его по разным полям, возвращаем в JSON
         response = ya_gpt_client.completion(texts.clearing_and_isolating(data["content"])).replace("```", "").strip()
         if response:
-            emit('naitaAction', {'text': 'анализирует...'})
+            emitNaitaAction('анализирует...')
             data = json.loads(response)
             try:
                 current_user.add_user_data(data) # сохраняем данные о пользователе
@@ -211,33 +103,37 @@ def handle_message_secure(data):
                 question = ''
 
                 if not current_user.coincidences_done:
-                    get_vacancies_coincidences()
                     emit('coincidences-done')
+                    # get_vacancies_coincidences()
+                    return get_main_vacancy_coincidence()
 
-            emit('naitaAction', {'text': 'печатает...'})
+            emitNaitaAction('печатает...')
             content = f'Запрос: {data.get("secure_request", "")}\n\nПользователь: {current_user.get_user_data()}'
             response = f'{openai_proxy_client.ask_assistant(content, current_user)}\n\n\n{question if question else ""}'.strip()
 
-            emit_response({'message': final_clean_text(response), 'type': 'text'})
+            emit_response({'text': final_clean_text(response), 'type': 'text'})
     else:
-        emit('naitaAction', {'text': 'печатает...'})
-        emit('response', {'message': texts.REGISTER_PLEASE, 'type': 'text'})
+        emitNaitaAction('печатает...')
+        emit('response', {'text': texts.REGISTER_PLEASE, 'type': 'text'})
 
 @socketio.on('fillInfo', namespace='/secure_chat')
 def secure_chat_fill_info(data):
-    # print(data)
     current_user.first_name = data.get('first_name', '')
     current_user.last_name = data.get('last_name', '')
     current_user.pers_data_consent = True
     db.session.commit()
+
     # парсим резюме, если ссылка есть
     if resume_link:=data.get('cv_link', None):
         if save_hh_resume(resume_link):
-            emit('response', {'message': texts.RESUME_SAVED, 'type': 'text'})
+            emit_response({'text': texts.RESUME_SAVED, 'type': 'text'})
         else:
-            emit('response', {'message': texts.RESUME_NOT_SAVED, 'type': 'text'})
+            emit_response({'text': texts.RESUME_NOT_SAVED, 'type': 'text'})
 
-    emit('response', {'message': texts.welcome(current_user), 'type': 'text'})
+    if not current_user.get_main_vacancy():
+        return emit_vacancies_menu()
+    else:
+        emit_response({'text': texts.lets_continue_with_vacancy(current_user), 'type': 'text'})
 
 @socketio.on('delMyMessages', namespace='/secure_chat')
 def del_messages_history():
@@ -255,21 +151,43 @@ def del_messages_history():
     current_user.profile_filled = False
     current_user.coincidences_done = False
 
-    messages = Message.query.filter((Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)).all()
-    for message in messages:
+    for message in Message.query.filter((Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)).all():
         db.session.delete(message)
 
-    user_data = UserData.query.filter(UserData.user_id == current_user.id).all()
-    for ud in user_data:
+    for ud in UserData.query.filter(UserData.user_id == current_user.id).all():
         db.session.delete(ud)
 
-    resumes = Resume.query.filter(Resume.user == current_user.id).all()
-    for resume in resumes:
+    for uv in UserVacancy.query.filter(UserVacancy.user_id == current_user.id).all():
+        db.session.delete(uv)
+
+    for resume in Resume.query.filter(Resume.user == current_user.id).all():
         db.session.delete(resume)
 
     db.session.commit()
-    emit('response', {'message': 'Перезагрузи страницу', 'type': 'text'})
+    emit('response', {'text': 'Перезагрузи страницу', 'type': 'text'})
     return Response(status=200)
+
+@socketio.on('messageBtnClick', namespace='/secure_chat')
+def handle_message_btn_click(data):
+    # ответить пользователю обязательный текст
+    emit('response', {'text': texts.VACANCY_SELECTED, 'type': 'text', 'disable_input': True})
+
+    message: Message = Message.query.get(int(data['mid']))
+    message.btns = None
+    db.session.commit()
+    emit('messageBtnClickReceived', {'mid': message.id})
+    if callback:=data.get('callback'):
+        if callback == 'vacancy':
+            vacancy = Vacancy.query.filter(Vacancy.name == data.get('text')).first()
+            user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
+                                                    UserVacancy.vacancy_id == vacancy.id).first()
+            if not user_vacancy:
+                user_vacancy = UserVacancy()
+                user_vacancy.user_id = current_user.id
+                user_vacancy.vacancy_id = vacancy.id
+                db.session.add(user_vacancy)
+            user_vacancy.is_main = True
+            db.session.commit()
 
 @chat_bp.get('/messages')
 def messages_history():
@@ -284,9 +202,11 @@ def messages_history():
                 'id': message.id,
                 'sender_id': message.sender_id,
                 'receiver_id': message.receiver_id,
-                'message_type': message.message_type,
+                'type': message.message_type,
                 'text': message.text,
                 'content': message.content,
+                'callback': message.callback,
+                'btns': message.btns,
                 'sent': message.sent.isoformat() if message.sent else None
             }
             for message in messages
@@ -294,8 +214,13 @@ def messages_history():
     return jsonify(messages_json), 200
 
 @incoming_message
-def emit_response(data):
+def emit_response(data, message=None):
+    if message:
+        data['id'] = message.id
     emit('response', data)
+
+def emitNaitaAction(text):
+    emit('naitaAction', {'text': text})
 
 def is_email_address(text):
     return bool(re.match(r'^(?:(?!.*\.\.)([a-zA-Z0-9!#$%&\'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&\'*+/=?^_`{|}~-]+)*)|(\"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\\\[\x01-\x09\x0b\x0c\x0e-\x7f])\"))@(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}|(?:\[(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\]))$', text))
@@ -355,6 +280,64 @@ def final_clean_text(text):
 
     return cleaned_content
 
+def get_main_vacancy_coincidence():
+    ya_gpt_client = YAGPT()
+    emitNaitaAction('анализирует соответствие запрошенной вакансии...')
+    vacancy = current_user.get_main_vacancy()
+    user_info = current_user.get_user_data()
+
+    prompt = f'''Посмотри информацию о вакансии, на которую я претендую:
+{vacancy.get_json()}
+
+Посмотри информацию обо мне:
+{user_info}
+
+Оцени уровень соответствия меня этой вакансии по шкале от 1 до 10?
+
+Верни ответ в виде JSON объекта:
+{{"vid": id вакансии,    
+"name": название вакансии,
+"value": оценка соответствия меня вакансии по шкале от 1 до 10,
+"positive": объяснение почему я соответствую этой вакансии (в формате markdown),
+"negative": объяснение чего мне не хватает для полного соответствия этой вакансии (в формате markdown),
+"recommendations": рекомендации на будущее (в формате markdown)}}
+
+Обращайся ко мне на ты.
+        '''
+
+    response = ya_gpt_client.completion(prompt).replace("```", "").strip()
+    if response:
+        coincidence = json.loads(response)
+        user_vacancy: UserVacancy = UserVacancy.query.filter(
+            UserVacancy.user_id == current_user.id,
+            UserVacancy.vacancy_id == vacancy.id).first()
+        user_vacancy.value = int(coincidence['value'])
+        user_vacancy.positive = coincidence['positive']
+        user_vacancy.negative = coincidence['negative']
+        user_vacancy.recommendations = coincidence['recommendations']
+
+        current_user.coincidences_done = True
+        db.session.commit()
+
+        return send_main_vacancy_coincidence_analitics_result(user_vacancy)
+
+def send_main_vacancy_coincidence_analitics_result(user_vacancy):
+    emit_response({
+        'text': f'##### Результаты анализа\n\n###### Положительные стороны:\n{user_vacancy.positive}\n\n###### Отрицательные нюансы:\n{user_vacancy.negative}',
+        'type': 'text',
+        'disabled_input': True,
+    })
+    if user_vacancy.value >= Config.MIN_COINCEDENCE_VALUE:
+        emit_response({
+            'text': texts.main_vacancy_coincedence_analysis_success(current_user),
+            'type': 'text'
+        })
+    else:
+        emit_response({
+            'text': texts.main_vacancy_coincedence_analysis_fail(current_user, user_vacancy),
+            'type': 'text'
+        })
+
 def get_vacancies_coincidences():
     vacansies_list = [v.get_json() for v in Vacancy.query.all()]
     user_info = current_user.get_user_data()
@@ -410,3 +393,7 @@ def get_vacancies_coincidences_background(prompt, uid):
             logging.info(f'Для пользователя {uid} сохранены соответствия вакансиям')
             return
     logging.info(f'Для пользователя {uid} не удалось сохранить соответствие вакансиям.')
+
+def emit_vacancies_menu():
+    vacancies = [v.name for v in Vacancy.query.all()]
+    return emit_response({'text': texts.SELECT_VACANCIES, 'type': 'text', 'btns': vacancies, 'callback': 'vacancy'})

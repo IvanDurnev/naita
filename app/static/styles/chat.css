@@ -63,8 +63,14 @@
     margin: 0;
 }
 
-.message pre p {
+.message pre p:last-child {
     margin: 0;
+}
+
+.message-btn {
+    color: #9E6FC3;
+    border-color: #9E6FC3!important;
+    cursor: pointer;
 }
 
 .incoming {

@@ -240,6 +240,11 @@ class User(UserMixin, db.Model):
         db.session.commit()
         return user_data.id
 
+    def get_main_vacancy(self):
+        if uv:=UserVacancy.query.filter(UserVacancy.user_id == self.id, UserVacancy.is_main == True).first():
+            return uv.get_vacancy()
+        return False
+
 class Message(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     sender_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
@@ -247,6 +252,7 @@ class Message(db.Model):
     message_type = Column(Enum('text', 'photo', 'video', 'audio', 'document', 'other', name='message_type_enum'), default='text')
     text = Column(Text)
     content = Column(JSONB)
+    btns = Column(JSONB)
     callback = Column(Text)
     sent = Column(DateTime, default=datetime.now)
 
@@ -288,10 +294,15 @@ class UserVacancy(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
     vacancy_id = Column(Integer, ForeignKey('vacancy.id', ondelete='CASCADE'))
+    is_main = Column(Boolean, default=False)
     value = Column(Integer)
     positive = Column(Text)
     negative = Column(Text)
+    recommendations = Column(Text)
     created = Column(DateTime, default=datetime.now)
+
+    def get_vacancy(self):
+        return Vacancy.query.filter(Vacancy.id == self.vacancy_id).first()
 
 # Декоратор для сохранения исходящего сообщения в базе данных
 def outgoing_message(func):
@@ -310,19 +321,27 @@ def outgoing_message(func):
         return func(*args, **kwargs)
     return wrapper
 
-# Декоратор для сохранения исходящего сообщения в базе данных
+# Декоратор для сохранения входящего сообщения в базе данных
 def incoming_message(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         data = args[0]
+        message = None
         try:
             message = Message()
-            message.text = data['message']
+            message.text = data['text']
             message.message_type = data['type']
+            if 'btns' in data:
+                message.btns = data['btns']
+            if 'callback' in data:
+                message.callback = data['callback']
             message.receiver_id = current_user.id
             db.session.add(message)
             db.session.commit()
         except Exception as e:
             logging.warning(f'Не удалось сохранить входящее сообщение. {e}')
+
+        # Добавляем сообщение в kwargs
+        kwargs['message'] = message
         return func(*args, **kwargs)
     return wrapper
