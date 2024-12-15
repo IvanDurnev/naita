@@ -30,8 +30,7 @@ def handle_connect_secure():
                 emit('response', {'text': texts.welcome(current_user), 'type': 'text'})
         else:
             emit('fillInfo')
-    else:
-        emit('response', {'text': texts.HELLO_LOGOUT, 'type': 'text'})
+    emit('response', {'text': texts.HELLO_LOGOUT, 'type': 'text'})
 
 @socketio.on('disconnect', namespace='/secure_chat')
 def handle_disconnect_secure():
@@ -78,7 +77,7 @@ def handle_message_secure(data):
                 logging.warning(f'Не удалось сохранить данные о пользователе. {e}')
 
             # ya gpt проверяет, какой инфы не хватает у юзера
-            additional_info = json.loads(ya_gpt_client.completion(f'{texts.YA_GPT_DATA_REQUEST}\n\n{current_user.get_user_data()}').replace("```", "").strip())
+            additional_info = json.loads(ya_gpt_client.completion(f'{texts.YA_GPT_DATA_REQUEST}\n{current_user.get_user_data()}').replace("```", "").strip())
             # print(additional_info)
             question = ''
             if additional_info:
@@ -93,7 +92,14 @@ def handle_message_secure(data):
                     session.pop('current_user_data_id', None)
                 except Exception as e:
                     pass
-            if additional_info.get('filled', False) or current_user.profile_filled:
+
+            profile_filled = False
+            try:
+                # profile_filled = additional_info.get('filled', False)
+                profile_filled = current_user.check_profile_filled()
+            except Exception as e:
+                pass
+            if profile_filled or current_user.profile_filled:
                 if not current_user.profile_filled:
                     current_user.profile_filled = True
                     emit('profile-filled')
@@ -111,12 +117,18 @@ def handle_message_secure(data):
 
             emitNaitaAction('печатает...')
             content = f'Запрос: {data.get("secure_request", "")}\n\nПользователь: {current_user.get_user_data()}'
-            response = f'{openai_proxy_client.ask_assistant(content, current_user)}\n\n\n{question if question else ""}'.strip()
+            response = f'{openai_proxy_client.ask_assistant(content, current_user)}'.strip()
 
-            emit_response({'text': final_clean_text(response), 'type': 'text'})
+            emitNaitaAction('проверяет...')
+            text_checked_by_ya_gpt = ya_gpt_client.completion(text=texts.v2t(final_clean_text(response)))
+            emit_response({'text': text_checked_by_ya_gpt, 'type': 'text'})
+
+            if question:
+                emit_response({'text': final_clean_text(question), 'type': 'text'})
     else:
         emitNaitaAction('печатает...')
         emit('response', {'text': texts.REGISTER_PLEASE, 'type': 'text'})
+        emit('showRegisterDlg')
 
 @socketio.on('fillInfo', namespace='/secure_chat')
 def secure_chat_fill_info(data):
@@ -180,6 +192,7 @@ def handle_message_btn_click(data):
         if callback == 'vacancy':
             # ответить пользователю обязательный текст
             emit('response', {'text': texts.VACANCY_SELECTED, 'type': 'text', 'disable_input': True})
+            emit('response', {'text': 'Какое у тебя образование?', 'type': 'text', 'disable_input': False})
             vacancy = Vacancy.query.filter(Vacancy.name == data.get('text')).first()
             user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
                                                     UserVacancy.vacancy_id == vacancy.id).first()
@@ -471,7 +484,11 @@ def send_vacancies_coincidences_analytics_result():
 
 def emit_vacancies_menu():
     vacancies = [v.name for v in Vacancy.query.all()]
-    return emit_response({'text': texts.SELECT_VACANCIES, 'type': 'text', 'btns': vacancies, 'callback': 'vacancy'})
+    return emit_response({'text': texts.SELECT_VACANCIES,
+                          'type': 'text',
+                          'btns': vacancies,
+                          'callback': 'vacancy',
+                          'disable_answer': True})
 
 
 # def get_vacancies_coincidences_background(prompt, uid):

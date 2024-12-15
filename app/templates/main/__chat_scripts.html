@@ -26,7 +26,7 @@
     let fileToSend = null;
 
     secureSocket.on('connect', () => {
-        loadMessages();
+        loadMessages(clear=false);
         $(chatInput).removeAttr('disabled');
     });
     secureSocket.on('disconnect', () => {
@@ -35,6 +35,9 @@
     secureSocket.on('response', socketMessageResponse);
     secureSocket.on('naitaAction', socketNaitaAction);
     secureSocket.on('fillInfo', socketMessageFillInfo);
+    secureSocket.on('showRegisterDlg', ()=>{
+        document.querySelector('#user-info a').click();
+    })
 
     function socketMessageResponse(event) {
         assistantTyping.style.display = 'none';
@@ -90,8 +93,9 @@
         })
     });
 
-    async function loadMessages() {
-        $(messagesContainer).empty();
+    async function loadMessages(clear=true) {
+        if (clear)
+            $(messagesContainer).empty();
         const response = await fetch('messages', {method: 'GET'});
         const messages = await response.json();
         messages.forEach(message => {
@@ -159,21 +163,26 @@
 
     // Функция добавления сообщения в интерфейс чата
     function appendMessage(message) {
+        console.log(message);
         let messageText = message.text
         let messageType = message.sender_id ? 'outgoing' : 'incoming'
         let messageButtons = message.btns
         let messageCallback = message.callback
         let disableAnswer = message.disable_answer
+        let messageId = message.id ? message.id : 0
 
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', messageType);
-        messageElement.setAttribute('data-mid', message.id);
+        if (messageId)
+            messageElement.setAttribute('data-mid', message.id);
         const textElement = document.createElement('pre');
 
         textElement.innerHTML = md.render(messageText);
 
         messageElement.appendChild(textElement);
         messagesContainer.appendChild(messageElement);
+
+        console.log(messageElement);
 
         if (messageButtons) {
             messageButtons.forEach(btnText => {

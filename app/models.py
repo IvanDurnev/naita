@@ -207,6 +207,12 @@ class User(UserMixin, db.Model):
         logging.error('Не удалось получить скрининг кандидата')
         return False
 
+    def check_profile_filled(self):
+        user_data = UserData.query.filter(UserData.user_id == self.id).all()
+        fields = set([ud.type for ud in user_data if ud.text])
+        reference_profile_fields = set(['main_education', 'add_education', 'experience', 'hard_skills', 'soft_skills', 'awards'])
+        return len(reference_profile_fields-fields) == 0
+
     def get_user_data(self):
         user_data = UserData.query.filter(UserData.user_id == self.id).all()
         resumes = Resume.query.filter(Resume.user == self.id).all()
