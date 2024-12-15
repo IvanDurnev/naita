@@ -1,3 +1,5 @@
+import os
+
 from app.models import Message, Resume, outgoing_message, incoming_message, UserData, Vacancy, UserVacancy
 from flask import request, jsonify, session, Response
 from flask_login import current_user
@@ -207,7 +209,10 @@ def handle_message_btn_click(data):
             if data.get('text') in ['да', 'Да', 'ДА']:
                 get_vacancies_coincidences()
         if callback == 'new_main_vacancy':
-            emit('response', {'text': texts.NEW_VACANCY_SELECTED, 'type': 'text', 'disable_input': True})
+            if os.environ.get('DEBUG'):
+                emit('response', {'text': texts.NEW_VACANCY_SELECTED, 'type': 'text', 'disable_input': False})
+            else:
+                emit('response', {'text': texts.NEW_VACANCY_SELECTED, 'type': 'text', 'disable_input': True})
             vacancy = Vacancy.query.filter(Vacancy.name == data.get('text')).first()
             user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
                                                     UserVacancy.vacancy_id == vacancy.id).first()
