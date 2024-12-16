@@ -38,6 +38,7 @@ class Config(object):
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') or None
     OPENAI_GPT_ASSISTANT_ID = os.getenv('OPENAI_GPT_ASSISTANT_ID') or None
     OPENAI_PROXY_ADDR=os.getenv('OPENAI_PROXY_ADDR') or None
+    OPENAI_ENABLED = os.getenv('OPENAI_ENABLED') or None
 
     # MAIL
     SMTP_SERVER = os.environ.get('SMTP_SERVER')

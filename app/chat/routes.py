@@ -32,7 +32,8 @@ def handle_connect_secure():
                 emit('response', {'text': texts.welcome(current_user), 'type': 'text'})
         else:
             emit('fillInfo')
-    emit('response', {'text': texts.HELLO_LOGOUT, 'type': 'text'})
+        return emit('response', {'text': texts.HELLO_LOGIN, 'type': 'text'})
+    return emit('response', {'text': texts.HELLO_LOGOUT, 'type': 'text'})
 
 @socketio.on('disconnect', namespace='/secure_chat')
 def handle_disconnect_secure():
@@ -69,18 +70,19 @@ def handle_message_secure(data):
             db.session.commit()
 
         # анализируем в Я ГПТ текст, разносим его по разным полям, возвращаем в JSON
-        response = ya_gpt_client.completion(texts.clearing_and_isolating(data["content"])).replace("```", "").strip()
+        # response = ya_gpt_client.completion(texts.clearing_and_isolating(data["content"])).replace("```", "").strip()
+        response = texts.assemble_reference_profile_with_user_data(current_user)
+        cleared_request = texts.ya_gpt_clear_user_request(data["content"])
+
         if response:
             emitNaitaAction('анализирует...')
-            data = json.loads(response)
             try:
-                current_user.add_user_data(data) # сохраняем данные о пользователе
+                current_user.update_user_profile(response)
             except Exception as e:
                 logging.warning(f'Не удалось сохранить данные о пользователе. {e}')
 
-            # ya gpt проверяет, какой инфы не хватает у юзера
-            additional_info = json.loads(ya_gpt_client.completion(f'{texts.YA_GPT_DATA_REQUEST}\n{current_user.get_user_data()}').replace("```", "").strip())
-            # print(additional_info)
+            additional_info = json.loads(ya_gpt_client.completion(texts.get_ya_gpt_data_request(current_user)).replace("```", "").strip())
+
             question = ''
             if additional_info:
                 try:
@@ -95,13 +97,7 @@ def handle_message_secure(data):
                 except Exception as e:
                     pass
 
-            profile_filled = False
-            try:
-                # profile_filled = additional_info.get('filled', False)
-                profile_filled = current_user.check_profile_filled()
-            except Exception as e:
-                pass
-            if profile_filled or current_user.profile_filled:
+            if current_user.is_profile_complete():
                 if not current_user.profile_filled:
                     current_user.profile_filled = True
                     emit('profile-filled')
@@ -114,16 +110,16 @@ def handle_message_secure(data):
 
                 if not current_user.coincidences_done:
                     emit('coincidences-done')
-                    # get_vacancies_coincidences()
                     return get_main_vacancy_coincidence()
 
-            emitNaitaAction('печатает...')
-            content = f'Запрос: {data.get("secure_request", "")}\n\nПользователь: {current_user.get_user_data()}'
-            response = f'{openai_proxy_client.ask_assistant(content, current_user)}'.strip()
+            if Config.OPENAI_ENABLED:
+                emitNaitaAction('печатает...')
+                content = f'Запрос: {cleared_request}\n\nПользователь: {current_user.get_user_data()}'
+                response = f'{openai_proxy_client.ask_assistant(content, current_user)}'.strip()
 
-            emitNaitaAction('проверяет...')
-            text_checked_by_ya_gpt = ya_gpt_client.completion(text=texts.v2t(final_clean_text(response)))
-            emit_response({'text': text_checked_by_ya_gpt, 'type': 'text'})
+                emitNaitaAction('проверяет...')
+                text_checked_by_ya_gpt = ya_gpt_client.completion(text=texts.v2t(final_clean_text(response)))
+                emit_response({'text': text_checked_by_ya_gpt, 'type': 'text'})
 
             if question:
                 emit_response({'text': final_clean_text(question), 'type': 'text'})
@@ -166,6 +162,7 @@ def del_messages_history():
     current_user.profile_assessment = ''
     current_user.profile_filled = False
     current_user.coincidences_done = False
+    current_user.profile = None
 
     for message in Message.query.filter((Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)).all():
         db.session.delete(message)
@@ -195,6 +192,8 @@ def handle_message_btn_click(data):
             # ответить пользователю обязательный текст
             emit('response', {'text': texts.VACANCY_SELECTED, 'type': 'text', 'disable_input': True})
             emit('response', {'text': 'Какое у тебя образование?', 'type': 'text', 'disable_input': False})
+            ud = current_user.add_user_data_question({'question_text': 'Какое у тебя образование?'})
+            session['current_user_data_id'] = str(ud)
             vacancy = Vacancy.query.filter(Vacancy.name == data.get('text')).first()
             user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
                                                     UserVacancy.vacancy_id == vacancy.id).first()
@@ -219,11 +218,12 @@ def handle_message_btn_click(data):
             user_vacancy.is_main = True
             db.session.commit()
 
-
 @socketio.on('testFun', namespace='/secure_chat')
 def test_fun(data):
-    # get_vacancies_coincidences()
-    print(data)
+    # print(data)
+    from pprint import pprint
+    pprint(current_user.profile)
+    print(current_user.is_profile_complete())
 
 @chat_bp.get('/messages')
 def messages_history():

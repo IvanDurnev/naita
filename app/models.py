@@ -16,6 +16,7 @@ from sqlalchemy.engine.cursor import CursorResult
 import logging
 import openai
 import functools
+import copy
 
 
 @login.user_loader
@@ -55,6 +56,8 @@ class User(UserMixin, db.Model):
     profile_assessment = Column(Text, default='')
     profile_filled = Column(Boolean, default=False)
     coincidences_done = Column(Boolean, default=False)
+
+    profile = Column(JSONB)
 
     # Отношения для полученных и отправленных сообщений
     sent_messages = db.relationship("Message", foreign_keys='Message.sender_id', back_populates="sender", cascade="all, delete-orphan")
@@ -218,24 +221,24 @@ class User(UserMixin, db.Model):
         resumes = Resume.query.filter(Resume.user == self.id).all()
         text = ''
         for ud in user_data:
-            if ud.question:
-                text += f'{ud.type}: Вопрос: {ud.question} Ответ:{ud.text}\n'
-            else:
-                text += f'{ud.type}: {ud.text}\n'
+            if ud.text:
+                if ud.question:
+                    text += f'{ud.type}: Вопрос: {ud.question} Ответ:{ud.text}\n'
+                else:
+                    text += f'{ud.type}: {ud.text}\n'
         for resume in resumes:
             text += f'{json.dumps(resume.data, ensure_ascii=False)}\n'
         return text
 
     def add_user_data(self, data):
         for key in data.keys():
-            if key not in ['request', 'secure_request']:
-                if data.get(key, None):
-                    user_data = UserData()
-                    user_data.user_id = self.id
-                    user_data.text = data.get(key, '')
-                    user_data.type = key
-                    db.session.add(user_data)
-                    db.session.commit()
+            if data.get(key, None):
+                user_data = UserData()
+                user_data.user_id = self.id
+                user_data.text = data.get(key, '')
+                user_data.type = key
+                db.session.add(user_data)
+                db.session.commit()
 
     def add_user_data_question(self, data):
         user_data = UserData()
@@ -250,6 +253,36 @@ class User(UserMixin, db.Model):
         if uv:=UserVacancy.query.filter(UserVacancy.user_id == self.id, UserVacancy.is_main == True).first():
             return uv.get_vacancy()
         return False
+
+    def update_user_profile(self, data):
+        self.profile = None
+        db.session.commit()
+        self.profile = data
+        db.session.commit()
+
+    def is_profile_complete(self):
+        """
+        Проверяет, что все поля в профиле заполнены.
+        Пустыми считаются: "", пустые списки, пустые словари.
+        Словари внутри списков проверяются только на наличие их самих, а не на заполненность их полей.
+        """
+
+        def is_value_filled(value):
+            if isinstance(value, str):
+                return value.strip() != ""  # Строка не должна быть пустой
+            elif isinstance(value, list):
+                # Проверяем, что список не пуст и содержит хотя бы один непустой элемент
+                return len(value) > 0 and all(
+                    isinstance(item, dict) or is_value_filled(item) for item in value
+                )
+            elif isinstance(value, dict):
+                return len(value) > 0 and all(
+                    is_value_filled(v) for v in value.values())  # Проверяем словари, кроме тех, что внутри списка
+            else:
+                return value is not None  # Для других типов проверяем, что значение не None
+
+        return is_value_filled(self.profile)
+
 
 class Message(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)

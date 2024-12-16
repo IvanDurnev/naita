@@ -34,5 +34,5 @@ class OpenAIProxy:
         response = requests.post(url, headers=headers, data=body)
         if response.status_code == 200:
             return response.json().get('content', '').strip()
-        logging.warning(response.json())
+        logging.warning(response.__dict__)
         return False
