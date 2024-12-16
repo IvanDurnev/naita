@@ -59,6 +59,8 @@ class User(UserMixin, db.Model):
 
     profile = Column(JSONB)
 
+    resume_received = Column(Boolean, default=False)
+
     # Отношения для полученных и отправленных сообщений
     sent_messages = db.relationship("Message", foreign_keys='Message.sender_id', back_populates="sender", cascade="all, delete-orphan")
     received_messages = db.relationship("Message", foreign_keys='Message.receiver_id', back_populates="receiver", cascade="all, delete-orphan")
@@ -75,6 +77,13 @@ class User(UserMixin, db.Model):
             return url_for('static', filename=f'users/{str(self.id)}/avatar.jpg')
         else:
             return url_for('static', filename=f'users/default/avatar_pixar.jpg')
+
+    def get_avatar_external(self):
+        avatar_path = os.path.join(Config.STATIC_FOLDER, 'users', str(self.id), 'avatar.jpg')
+        if os.path.exists(avatar_path):
+            return url_for('static', filename=f'users/{str(self.id)}/avatar.jpg', _external=True)
+        else:
+            return url_for('static', filename=f'users/default/avatar_pixar.jpg', _external=True)
 
     def set_auth_code(self):
         # Сохранение кода в базе данных с ограничением по времени

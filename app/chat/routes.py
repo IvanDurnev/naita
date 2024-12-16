@@ -70,7 +70,6 @@ def handle_message_secure(data):
             db.session.commit()
 
         # анализируем в Я ГПТ текст, разносим его по разным полям, возвращаем в JSON
-        # response = ya_gpt_client.completion(texts.clearing_and_isolating(data["content"])).replace("```", "").strip()
         response = texts.assemble_reference_profile_with_user_data(current_user)
         cleared_request = texts.ya_gpt_clear_user_request(data["content"])
 
@@ -107,6 +106,13 @@ def handle_message_secure(data):
                 except Exception as e:
                     pass
                 question = ''
+
+                if not current_user.resume_received:
+                    emitNaitaAction('готовлю твое резюме...')
+                    response = texts.assemble_cv(current_user)
+                    emit_response({'text': response, 'type': 'text', 'format': 'html'})
+                    current_user.resume_received = True
+                    db.session.commit()
 
                 if not current_user.coincidences_done:
                     emit('coincidences-done')

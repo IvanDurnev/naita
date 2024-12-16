@@ -170,6 +170,7 @@
         let messageCallback = message.callback
         let disableAnswer = message.disable_answer
         let messageId = message.id ? message.id : 0
+        let format = message.format ? message.format : 'markdown'
 
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', messageType);
@@ -177,7 +178,7 @@
             messageElement.setAttribute('data-mid', message.id);
         const textElement = document.createElement('pre');
 
-        textElement.innerHTML = md.render(messageText);
+        textElement.innerHTML = format==='markdown' ? md.render(messageText) : messageText;
 
         messageElement.appendChild(textElement);
         messagesContainer.appendChild(messageElement);

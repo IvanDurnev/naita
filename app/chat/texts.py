@@ -167,3 +167,17 @@ def assemble_reference_profile_with_user_data(user):
     response = json.loads(ya_gpt_client.completion(prompt).replace("```", "").strip())
     return response
 
+def assemble_cv(user):
+    ya_gpt_client = YAGPT()
+    prompt = f'''Посмотри информацию обо мне:
+Меня зовут: {user.first_name} {user.last_name}
+Ссылка на фото: {user.get_avatar_external()}  - вставь его тэгом <img width="100" height="100">
+{user.get_user_data()}
+
+Составь для меня хорошее подробное CV.
+Где не хватает информации - распиши красиво и подробно имеющуюся
+
+Верни моё CV в формате HTML
+'''
+    response = ya_gpt_client.completion(prompt).replace("```", "").strip()
+    return response
