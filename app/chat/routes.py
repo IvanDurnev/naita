@@ -169,6 +169,7 @@ def del_messages_history():
     current_user.profile_filled = False
     current_user.coincidences_done = False
     current_user.profile = None
+    current_user.resume_received = False
 
     for message in Message.query.filter((Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)).all():
         db.session.delete(message)
@@ -227,9 +228,13 @@ def handle_message_btn_click(data):
 @socketio.on('testFun', namespace='/secure_chat')
 def test_fun(data):
     # print(data)
-    from pprint import pprint
-    pprint(current_user.profile)
-    print(current_user.is_profile_complete())
+    # from pprint import pprint
+    # pprint(current_user.profile)
+    # print(current_user.is_profile_complete())
+    ya_gpt_client = YAGPT()
+    text = 'ОТП Банк — это часть международной банковской группы OTP Group, предоставляющая полный спектр финансовых решений для частных и корпоративных клиентов[1]. История банка в России началась в 1994 году с открытия сберегательного банка «Гермес», который позднее стал частью OTP Group[2]. Банк активно развивает сеть филиалов и предоставляет многочисленные финансовые услуги, включая кредиты, вклады, карты и интернет-банкинг[3]. В 2024 году ОТП Банк отмечает 30 лет на российском рынке, продолжая оставаться надежным финансовым партнером[4].'
+    print('ща')
+    print(ya_gpt_client.completion(texts.v2t(text)))
 
 @chat_bp.get('/messages')
 def messages_history():
