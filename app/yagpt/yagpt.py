@@ -1,9 +1,19 @@
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 from config import Config
 import requests
 import json
 import os
+
+import pathlib
+from yandex_cloud_ml_sdk import YCloudML
+from yandex_cloud_ml_sdk.auth import APIKeyAuth
+from yandex_cloud_ml_sdk.search_indexes import (
+    StaticIndexChunkingStrategy,
+    TextSearchIndexType,
+)
 
 
 class YAGPT:
@@ -14,7 +24,7 @@ class YAGPT:
     def create_yandex_iam_token():
         iam_url = 'https://iam.api.cloud.yandex.net/iam/v1/tokens'
         payload = {
-            'yandexPassportOauthToken': Config.YANDEX_OAUTH_TOKEN
+            'yandexPassportOauthToken': Config.YC_OAUTH_TOKEN
         }
         iam = requests.post(url=iam_url, data=json.dumps(payload))
 
@@ -68,3 +78,27 @@ class YAGPT:
             logging.info(response.status_code)
             logging.info(response.json())
         return response.json()['result']['alternatives'][0]['message']['text']
+
+
+class YaAssistant:
+    def __init__(self):
+        self.knowledge_base_path = os.path.join(Config.STATIC_FOLDER, 'knowledge_base')
+        self.sdk = YCloudML(folder_id=Config.YANDEX_CATALOG_ID,
+                            auth=APIKeyAuth(os.environ.get('YC_API_KEY')))
+        paths = pathlib.Path(self.knowledge_base_path).iterdir()
+
+        # Загрузим файлы с примерами
+        # Файлы будут храниться 5 дней
+        self.files = []
+        for path in paths:
+            file = self.sdk.files.upload(
+                path,
+                ttl_days=5,
+                expiration_policy="static",
+            )
+            self.files.append(file)
+            print(path)
+
+
+    def test(self):
+        print(self.sdk)

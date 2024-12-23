@@ -23,11 +23,12 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # YANDEX
-    YANDEX_OAUTH_TOKEN = os.getenv('YANDEX_OAUTH_TOKEN')
+    YC_OAUTH_TOKEN = os.getenv('YC_OAUTH_TOKEN')
     IAM_CREDENTIALS_FILE = os.path.join(basedir, 'app', 'static', 'credentials', 'iam_token.json')
     YANDEX_CLOUD_ID = os.getenv('YANDEX_CLOUD_ID')
     YANDEX_CATALOG_ID = os.getenv('YANDEX_CATALOG_ID')
     YANDEX_GPT_MODEL = os.getenv('YANDEX_GPT_MODEL')
+    YC_API_KEY = os.getenv('YC_API_KEY')
 
     #VK_ID
     VK_APP_ID = os.getenv('VK_APP_ID')

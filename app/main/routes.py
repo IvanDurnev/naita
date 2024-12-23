@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 import requests
 from sqlalchemy.testing.plugin.plugin_base import logging
@@ -14,11 +15,36 @@ import os
 
 @bp.get('/')
 def index_main():
-    # yagpt_client = YAGPT()
-    # yagpt_client.completion('Привет!')
     return render_template(template_name_or_list='main/index.html',
-                           vk_redirect_uri=Config.VK_ID_REDIRECT_URI
-                           )
+                           vk_redirect_uri=Config.VK_ID_REDIRECT_URI)
+
+@bp.get('/test')
+def test():
+    import pathlib
+
+    from yandex_cloud_ml_sdk import YCloudML
+    from yandex_cloud_ml_sdk.search_indexes import (
+        StaticIndexChunkingStrategy,
+        TextSearchIndexType,
+    )
+
+    mypath = os.path.join(Config.STATIC_FOLDER, 'knowledge_base')
+
+    sdk = YCloudML(
+        folder_id=Config.YANDEX_CATALOG_ID,
+        auth=Config.YC_API_KEY
+    )
+
+    assistant = sdk.assistants.create(
+        'yandexgpt',
+        ttl_days=1,
+        expiration_policy='static',
+        temperature=0.5,
+        max_prompt_tokens=50,
+    )
+    print(f"{assistant=}")
+
+    return 'Куку'
 
 
 @bp.post('/verify_email')
