@@ -22,6 +22,13 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI = f'postgresql+psycopg2://{user}:{pw}@{url}/{db}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # CACHING
+    REDIS_KEY_PREFIX = 'naita'
+    REDIS_HOST = 'localhost'
+    REDIS_PORT = 6379
+    REDIS_DB = 2
+    REDIS_URL = 'redis://:@localhost:6379/2'
+
     # YANDEX
     YC_OAUTH_TOKEN = os.getenv('YC_OAUTH_TOKEN')
     IAM_CREDENTIALS_FILE = os.path.join(basedir, 'app', 'static', 'credentials', 'iam_token.json')

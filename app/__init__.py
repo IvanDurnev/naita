@@ -13,6 +13,7 @@ import logging
 from flask_bootstrap import Bootstrap5 as Bootstrap
 from flask_session import Session
 import gevent
+import redis
 
 
 db = SQLAlchemy()
@@ -25,6 +26,7 @@ cors = CORS()
 socketio = SocketIO()
 mail = Mail()
 sess = Session()
+redis_client = redis.Redis(host=Config.REDIS_HOST, port=Config.REDIS_PORT, db=Config.REDIS_DB)
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)

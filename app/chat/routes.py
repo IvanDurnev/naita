@@ -126,6 +126,11 @@ def handle_message_secure(data):
                 emitNaitaAction('проверяет...')
                 text_checked_by_ya_gpt = ya_gpt_client.completion(text=texts.v2t(final_clean_text(response)))
                 emit_response({'text': text_checked_by_ya_gpt, 'type': 'text'})
+            else:
+                emitNaitaAction('печатает...')
+                content = f'Запрос: {cleared_request}\n\nПользователь: {current_user.get_user_data()}'
+                response = ya_gpt_client.ask_assistant(content, current_user)
+                emit_response({'text': response, 'type': 'text'})
 
             if question:
                 emit_response({'text': final_clean_text(question), 'type': 'text'})

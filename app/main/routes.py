@@ -1,8 +1,7 @@
-from __future__ import annotations
 import json
 import requests
 from sqlalchemy.testing.plugin.plugin_base import logging
-from app import db, sess
+from app import db, sess, redis_client
 from app.main import bp
 from flask import render_template, redirect, request, Response, jsonify, session
 from app.models import User, load_user, Message
@@ -11,39 +10,24 @@ from app.yagpt.yagpt import YAGPT
 from config import Config
 import logging
 import os
+import mimetypes
 
 
 @bp.get('/')
 def index_main():
+    if current_user.is_authenticated:
+        # проверить наличие персонального ассистента
+        if not current_user.ya_assistant_id:
+            # создать персонального ассистента
+            current_user.create_personal_ya_assistant()
+
     return render_template(template_name_or_list='main/index.html',
                            vk_redirect_uri=Config.VK_ID_REDIRECT_URI)
 
 @bp.get('/test')
 def test():
-    import pathlib
-
-    from yandex_cloud_ml_sdk import YCloudML
-    from yandex_cloud_ml_sdk.search_indexes import (
-        StaticIndexChunkingStrategy,
-        TextSearchIndexType,
-    )
-
-    mypath = os.path.join(Config.STATIC_FOLDER, 'knowledge_base')
-
-    sdk = YCloudML(
-        folder_id=Config.YANDEX_CATALOG_ID,
-        auth=Config.YC_API_KEY
-    )
-
-    assistant = sdk.assistants.create(
-        'yandexgpt',
-        ttl_days=1,
-        expiration_policy='static',
-        temperature=0.5,
-        max_prompt_tokens=50,
-    )
-    print(f"{assistant=}")
-
+    ya = YAGPT()
+    ya.ask_assistant('Расскажи о банке', current_user)
     return 'Куку'
 
 

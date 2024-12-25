@@ -1,7 +1,7 @@
 import json
 from flask import url_for
 from flask_mail import Message as MailMessage
-from app import db, login, Config, mail
+from app import db, login, Config, mail, redis_client
 from flask_login import UserMixin, login_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
@@ -17,6 +17,8 @@ import logging
 import openai
 import functools
 import copy
+from app.yagpt.yagpt import YAGPT, KnowledgeBase
+import mimetypes
 
 
 @login.user_loader
@@ -56,6 +58,10 @@ class User(UserMixin, db.Model):
     profile_assessment = Column(Text, default='')
     profile_filled = Column(Boolean, default=False)
     coincidences_done = Column(Boolean, default=False)
+
+    ya_assistant_id = Column(Text)
+    current_ya_thread = Column(Text)
+    ya_user_id = Column(Text)
 
     profile = Column(JSONB)
 
@@ -292,6 +298,8 @@ class User(UserMixin, db.Model):
 
         return is_value_filled(self.profile)
 
+    def create_personal_ya_assistant(self):
+        kb = KnowledgeBase(self)
 
 class Message(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -338,7 +346,6 @@ class Vacancy(db.Model):
     def get_json(self):
         return {'id': self.id, 'name': self.name, 'description': self.description}
 
-
 class UserVacancy(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
@@ -352,6 +359,12 @@ class UserVacancy(db.Model):
 
     def get_vacancy(self):
         return Vacancy.query.filter(Vacancy.id == self.vacancy_id).first()
+
+class YaAssistantMessage(db.Model):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
+    message_id = Column(Text)
+    content = Column(JSONB)
 
 # Декоратор для сохранения исходящего сообщения в базе данных
 def outgoing_message(func):
