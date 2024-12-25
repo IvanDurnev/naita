@@ -129,8 +129,11 @@ def handle_message_secure(data):
             else:
                 emitNaitaAction('печатает...')
                 content = f'Запрос: {cleared_request}\n\nПользователь: {current_user.get_user_data()}'
-                response = ya_gpt_client.ask_assistant(content, current_user)
-                emit_response({'text': response, 'type': 'text'})
+                try:
+                    response = ya_gpt_client.ask_assistant(content, current_user)
+                    emit_response({'text': response, 'type': 'text'})
+                except Exception as e:
+                    logging.error(f'Не удалось получить ответ от ассистента, {e}')
 
             if question:
                 emit_response({'text': final_clean_text(question), 'type': 'text'})
