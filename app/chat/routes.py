@@ -71,7 +71,10 @@ def handle_message_secure(data):
 
         # анализируем в Я ГПТ текст, разносим его по разным полям, возвращаем в JSON
         response = texts.assemble_reference_profile_with_user_data(current_user)
-        cleared_request = texts.ya_gpt_clear_user_request(data["content"])
+        uncleared_request = data["content"]
+        cleared_request = ''
+        if Config.OPENAI_ENABLED:
+            cleared_request = texts.ya_gpt_clear_user_request(data["content"])
 
         if response:
             emitNaitaAction('анализирует...')
@@ -128,12 +131,13 @@ def handle_message_secure(data):
                 emit_response({'text': text_checked_by_ya_gpt, 'type': 'text'})
             else:
                 emitNaitaAction('печатает...')
-                content = f'Запрос: {cleared_request}\n\nПользователь: {current_user.get_user_data()}'
+                content = f'Запрос: {uncleared_request}\n\nПользователь: {current_user.get_user_data()}'
                 try:
+                    # response = ya_gpt_client.ask_assistant(uncleared_request, current_user)
                     response = ya_gpt_client.ask_assistant(content, current_user)
                     emit_response({'text': response, 'type': 'text'})
                 except Exception as e:
-                    logging.error(f'Не удалось получить ответ от ассистента, {e}')
+                    logging.error(f'Не удалось получить ответ от яндекс ассистента, {e}')
 
             if question:
                 emit_response({'text': final_clean_text(question), 'type': 'text'})

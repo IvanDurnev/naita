@@ -116,7 +116,7 @@ class YAGPT:
         if instruction is None:
             instruction = prompts.KNOWLEDGE_BASE_ASSISTANT_INSTRUCTION
         if prompt_truncation_options is None:
-            prompt_truncation_options = {"maxPromptTokens": "7000"}
+            prompt_truncation_options = {"maxPromptTokens": "20000"}
         if completion_options is None:
             completion_options = {"maxTokens": "5000",
                                   "temperature": "0.7"
@@ -195,10 +195,13 @@ class YAGPT:
             thread = self.create_thread(user)
         self.create_message(content, user)
         run = self.create_run(user.ya_assistant_id, user.current_ya_thread)
+        if os.environ.get('DEBUG'):
+            logging.info(f'Запущен RUN {run}')
         if run:
             result = self.run_listen(run['id'])
-            # from pprint import pprint
-            # pprint(result)
+            # if os.environ.get('DEBUG'):
+            #     from pprint import pprint
+            #     pprint(result)
             return result['result']['completed_message']['content']['content'][0]['text']['content']
         return None
 
@@ -284,6 +287,8 @@ class YAGPT:
             'runId': run_id
         }
         response = requests.get(url=url, headers=self.headers, params=params)
+        if os.environ.get('DEBUG'):
+            logging.info(f'Запущен RUN LISTEN {response.__dict__}')
         decoded_content = response.content.decode('utf-8')
         json_objects = decoded_content.strip().split("\n")
         # Обрабатываем каждый объект
