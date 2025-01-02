@@ -111,11 +111,14 @@ def handle_message_secure(data):
                 question = ''
 
                 if not current_user.resume_received:
+                    from app.main.routes import cv
                     emitNaitaAction('готовлю твое резюме...')
-                    response = texts.assemble_cv(current_user)
+                    # response = texts.assemble_cv(current_user)
+                    response = cv()
                     emit_response({'text': response, 'type': 'text', 'format': 'html'})
                     current_user.resume_received = True
                     db.session.commit()
+                    emit_response({'text': 'Также направила тебе это резюме на почту', 'type': 'text'})
 
                 if not current_user.coincidences_done:
                     emit('coincidences-done')
@@ -131,7 +134,8 @@ def handle_message_secure(data):
                 emit_response({'text': text_checked_by_ya_gpt, 'type': 'text'})
             else:
                 emitNaitaAction('печатает...')
-                content = f'Запрос: {uncleared_request}\n\nПользователь: {current_user.get_user_data()}'
+                # content = f'Запрос: {uncleared_request}\n\nПользователь: {current_user.get_user_data()}'
+                content = uncleared_request
                 try:
                     # response = ya_gpt_client.ask_assistant(uncleared_request, current_user)
                     response = ya_gpt_client.ask_assistant(content, current_user)
@@ -150,8 +154,11 @@ def handle_message_secure(data):
 def secure_chat_fill_info(data):
     current_user.first_name = data.get('first_name', '')
     current_user.last_name = data.get('last_name', '')
+    current_user.name = f'{current_user.first_name} {current_user.last_name}'
     current_user.pers_data_consent = True
     db.session.commit()
+
+    emit('setName', {'name': current_user.name})
 
     # парсим резюме, если ссылка есть
     if resume_link:=data.get('cv_link', None):

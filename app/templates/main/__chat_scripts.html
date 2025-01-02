@@ -38,6 +38,9 @@
     secureSocket.on('showRegisterDlg', ()=>{
         document.querySelector('#user-info a').click();
     })
+    secureSocket.on('setName', (ev)=>{
+        document.querySelector('#user-info p').innerText = `Привет, ${ev.name}!`
+    })
 
     function socketMessageResponse(event) {
         assistantTyping.style.display = 'none';

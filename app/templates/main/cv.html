@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{ bootstrap.load_css() }}
+    {{ bootstrap.load_js() }}
+    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+    <title>{{ info['name'] }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+        body {
+            font-family: Onest, sans-serif;
+        }
+        p {
+            margin: 0;
+        }
+        #main-about-wrapper {
+            padding: 5px 5px 0 5px;
+            background: radial-gradient(circle at 0% 0%, #9E6FC3 2%, #F6F7FA 15%, #F6F7FA 100%);
+            margin: 0;
+        }
+        #header-grid {
+            display: grid;
+            grid-template-columns: 9fr 3fr;
+        }
+        #ava {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+        }
+        #main-about, #job-experience, #education {
+            border-radius: 16px;
+            background-color: white;
+            padding: 12px;
+        }
+
+        #description-wrapper {
+            width: 100%!important;
+            display: grid;
+            grid-template-columns: 6fr 5fr;
+            grid-column-gap: 5px;
+            padding: 5px;
+            background: radial-gradient(circle at 55% 0%, #E5FD0C 10%, #F6F7FA 15%, #F6F7FA 100%);
+            margin:0;
+        }
+
+        .custom-badge {
+            display: inline-block;
+            background-color: #F4F4F4;
+            border-radius: 10px;
+            padding: 5px;
+            white-space: nowrap;
+            margin: 3px 2px;
+        }
+        .font-bold {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div id="main-about-wrapper">
+            <div id="main-about">
+                <div id="header-grid">
+                    <div>
+                        <h1>{{ info['name'] }}</h1>
+                        <p class="mb-5">{{ info['profession'] }}</p>
+                    </div>
+                    <div style="text-align: end;">
+                        {% if info['photo'] %}
+                            <img id="ava" src="{{ info['photo'] }}">
+                        {% endif %}
+                    </div>
+                </div>
+                <p class="mb-5">{{ info['description'] }}</p>
+                <p class="mb-5 font-bold">
+                    {{ info['email'] }}
+                    {% if info['phone'] %}
+                    • {{ info['phone'] }}
+                    {% endif %}
+                    {% if info['city']  %}
+                    • {{ info['city'] }}</p>
+                    {% endif %}
+            </div>
+        </div>
+        <div id="description-wrapper">
+            <div id="job-experience">
+                <h3>Опыт работы</h3>
+                <ul>
+                    {% for e in info['job_experience'] %}
+                        <li>
+                            <h6>{{ e['name'] or loop.index }}</h6>
+                            <p>{{ e['position'] or '' }}</p>
+                            <p>{{ e['years'] or '' }}</p>
+                            {% if e['responsibilities'] %}
+                                <p>Основные обязанности</p>
+                                <ul>
+                                    {% for r in e['responsibilities'] %}
+                                        <li>{{ r }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                            {% if e['achievements'] %}
+                                <p>Основные достижения</p>
+                                <ul>
+                                    {% for r in e['achievements'] %}
+                                        <li>{{ r }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div id="education">
+                <div class="mb-5">
+                    <h3>Образование</h3>
+                    <ul>
+                        {% for e in info['education'] %}
+                            <li class="mb-3">
+                                <h6>{{ e['name'] }}</h6>
+                                <p>{{ e['profession'] or '' }}</p>
+                                <p>{{ e['years'] }}</p>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="mb-5">
+                    <h3>Навыки</h3>
+                    {% for s in info['hard_skills'] %}
+                        <span class="custom-badge">{{ s }}</span>
+                    {% endfor %}
+                    {% for s in info['soft_skills'] %}
+                        <span class="custom-badge">{{ s }}</span>
+                    {% endfor %}
+                </div>
+
+                {% if info['other'] and info['other'][0] != 'None' %}
+                    <div class="mb-5">
+                        <h3>Дополнительная информация</h3>
+                        <ul>
+                            {% for i in info['other'] %}
+                                <li>{{ i }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        <div id="footer-wrapper" class="text-center pt-3">
+            <img src="{{ url_for('static', filename='images/logo.png', _external=True) }}" width="30" height="24">
+            <span>powered by Naita</span>
+        </div>
+    </main>
+    </body>
+</html>

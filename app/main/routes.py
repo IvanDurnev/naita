@@ -1,7 +1,9 @@
 import json
 import requests
 from sqlalchemy.testing.plugin.plugin_base import logging
-from app import db, sess, redis_client
+from flask_socketio import emit
+from app import db, sess, redis_client, mail
+from app.chat.routes import emit_response
 from app.main import bp
 from flask import render_template, redirect, request, Response, jsonify, session
 from app.models import User, load_user, Message
@@ -11,6 +13,7 @@ from config import Config
 import logging
 import os
 import mimetypes
+from flask_mail import Message as MailMessage
 
 
 @bp.get('/')
@@ -29,6 +32,50 @@ def test():
     ya = YAGPT()
     ya.ask_assistant('Расскажи о банке', current_user)
     return 'Куку'
+
+
+@bp.get('/cv')
+def cv():
+    from weasyprint import HTML
+    from app.chat import texts
+    response = texts.get_cv_fields(current_user)
+    info = json.loads(response)
+
+    # проверяем нужные поля на то, что там текст, а не список
+    for item in info['education']:
+        if type(item['profession']) is list:
+            item['profession'] = ', '.join(item['profession'])
+
+    # путь сохранения резюме пользователя
+    cv_saving_path = os.path.join(Config.STATIC_FOLDER, 'users', str(current_user.id))
+    cv_file_path = os.path.join(cv_saving_path, 'cv.pdf')
+    if not os.path.exists(cv_saving_path):
+        os.makedirs(cv_saving_path)
+
+    HTML(string=render_template('main/cv.html', info=info)).write_pdf(cv_file_path)
+
+    # отправляем резюме на почту пользователю
+    try:
+        msg = MailMessage(
+            'НАЙТА, код авторизации.',
+            sender=Config.MAIL_DEFAULT_SENDER,
+            recipients=[current_user.email]
+        )
+        msg.body = texts.CV_SENT_BY_EMAIL_EMAIL_BODY
+
+        # Добавление файла как вложения
+        with open(cv_file_path, 'rb') as f:
+            msg.attach(
+                filename="cv_by_Naita.pdf",
+                content_type="application/pdf",
+                data=f.read()
+            )
+
+        mail.send(msg)
+    except Exception as e:
+        logging.info(f'Не удалось отправить email c CV. {e}')
+
+    return render_template('main/cv.html', info=info)
 
 
 @bp.post('/verify_email')

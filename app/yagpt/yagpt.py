@@ -99,12 +99,6 @@ class YAGPT:
     ):
         """
         Создает ассистента в системе Yandex.
-
-        Аргументы:
-            name (str): Имя ассистента (по умолчанию "Найта").
-            description (str): Описание ассистента.
-            expiration_config (dict): Конфигурация времени жизни ассистента.
-            labels (dict): Дополнительные метки.
         """
         if expiration_config is None:
             expiration_config = {'expirationPolicy': 'STATIC',
@@ -116,9 +110,9 @@ class YAGPT:
         if instruction is None:
             instruction = prompts.KNOWLEDGE_BASE_ASSISTANT_INSTRUCTION
         if prompt_truncation_options is None:
-            prompt_truncation_options = {"maxPromptTokens": "20000"}
+            prompt_truncation_options = {"maxPromptTokens": "100000"}
         if completion_options is None:
-            completion_options = {"maxTokens": "5000",
+            completion_options = {"maxTokens": "10000",
                                   "temperature": "0.7"
                                   }
         if tools is None:
@@ -508,8 +502,6 @@ class YAGPT:
             return response.json()
         return False
 
-
-
 class KnowledgeBase:
     def __init__(self, user):
         self.files_path = os.path.join(Config.STATIC_FOLDER, 'knowledge_base')
@@ -694,3 +686,6 @@ class KnowledgeBase:
             if os.environ.get('DEBUG'):
                 logging.info(f'У пользователя есть ассистент {assistant}')
             return True
+
+class CV:
+    pass
