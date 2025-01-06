@@ -424,20 +424,22 @@ def get_main_vacancy_coincidence():
         return send_main_vacancy_coincidence_analytics_result(user_vacancy)
 
 def send_main_vacancy_coincidence_analytics_result(user_vacancy):
-    # emit_response({
-    #     'text': f'##### Результаты анализа\n\n###### Положительные стороны:\n{user_vacancy.positive}\n\n###### Отрицательные нюансы:\n{user_vacancy.negative}',
-    #     'type': 'text',
-    #     'disabled_input': True,
-    # })
+    emit_response({
+        'text': f'##### Результаты анализа\n\n###### Сильные стороны:\n{user_vacancy.positive}\n\n###### Точки роста:\n{user_vacancy.negative}',
+        'type': 'text',
+        'disabled_input': True,
+    })
     from app.main.routes import recommendations
-    emit_response(
-        {
-            'text': recommendations(),
-            'type': 'text',
-            'format': 'html',
-            'disabled_input': True,
-        }
-    )
+    recommendations()
+    # не отправляем код, потому что css из верстки рекомендаций применяется ко всему чату
+    # emit_response(
+    #     {
+    #         'text': recommendations(),
+    #         'type': 'text',
+    #         'format': 'html',
+    #         'disabled_input': True,
+    #     }
+    # )
 
     # уведомить пользователя об отправке рекомендаций на почту
     emit_response(
