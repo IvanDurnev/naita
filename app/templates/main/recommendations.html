@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{ bootstrap.load_css() }}
+    {{ bootstrap.load_js() }}
+    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+    <title>{{ info['name'] }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+        body {
+            font-family: Onest, sans-serif;
+        }
+        p {
+            margin: 0;
+            font-size: 16px;
+        }
+        #main-about-wrapper {
+            padding: 5px 5px 0 5px;
+            {#background: radial-gradient(circle at 0% 0%, #9E6FC3 2%, #F6F7FA 15%, #F6F7FA 100%);#}
+            background: #F6F7FA;
+            margin: 0;
+        }
+        #main-about, #recommendations {
+            position: relative;
+            border-radius: 16px;
+            background-color: white;
+            padding: 50px;
+            z-index: 100;
+        }
+
+        #description-wrapper {
+            width: 100%!important;
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-column-gap: 5px;
+            padding: 5px;
+            {#background: radial-gradient(circle at 90% 0%, #E5FD0C 10%, #F6F7FA 15%, #F6F7FA 100%);#}
+            background: #F6F7FA;
+            margin:0;
+        }
+
+        .custom-badge {
+            display: inline-block;
+            background-color: #F4F4F4;
+            border-radius: 10px;
+            padding: 5px;
+            white-space: nowrap;
+            margin: 3px 2px;
+        }
+        .font-bold {
+            font-weight: bold;
+        }
+        #decor-green {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            right: -400px;
+            top: 5%;
+            background: radial-gradient(circle at 50% 40%, #E5FD0C 10%, rgba(246, 247, 250, 0) 50%, rgba(246, 247, 250, 0) 100%);
+            border-radius: 50%;
+        }
+        #decor-purple {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            left: -400px;
+            top: -400px;
+            background: radial-gradient(circle at 50% 40%, #9E6FC3 10%, rgba(246, 247, 250, 0) 50%, rgba(246, 247, 250, 0) 100%);
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div id="main-about-wrapper">
+            <div id="main-about">
+                <div>
+                    <h1>Рекомендации<br>для {{ info['name_rod'] }}</h1>
+                    <p class="mb-3" style="color: #242424">{{ info['profession'] }}</p>
+                </div>
+                <p class="mb-3">Вакансия: <b>{{ info['vacancy'] }}</b></p>
+                <p class="mb-3">Дата формирования: {{ info['date'] }} </p>
+            </div>
+        </div>
+        <div id="description-wrapper">
+            <div id="recommendations">
+                <div class="mb-5">
+                    <h5>Сильные стороны:</h5>
+                    <p>{{ info['positive'] }}</p>
+                </div>
+                <div class="mb-5">
+                    <h5>Точки роста:</h5>
+                    <p>{{ info['negative'] }}</p>
+                </div>
+                <div class="mb-5">
+                    <h5>Вот мои рекомендации на будущее:</h5>
+                    <p>{{ info['recommendations'] }}</p>
+                </div>
+            </div>
+        </div>
+        <div id="footer-wrapper" class="text-center pt-3">
+            <img src="{{ url_for('static', filename='images/logo.png', _external=True) }}" width="30" height="24">
+            <span>powered by Naita</span>
+        </div>
+        <div id="decor-green"></div>
+        <div id="decor-purple"></div>
+    </main>
+    </body>
+</html>

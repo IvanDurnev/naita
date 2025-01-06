@@ -1,6 +1,6 @@
 import os
 
-from app.models import User
+from app.models import User, Vacancy
 from app.yagpt.yagpt import YAGPT
 import json
 
@@ -20,7 +20,9 @@ RESUME_SAVED = 'Твоё резюме сохранено, спасибо!'
 
 RESUME_NOT_SAVED = 'Не удалось сохранить твое резюме. Возможно ссылка некорректная. Пришли, пожалуйста, еще раз.'
 
-CV_SENT_BY_EMAIL_EMAIL_BODY = 'Привет, во вложении резюме, которое я для тебя подготовила.'
+CV_SENT_BY_EMAIL_EMAIL_BODY = 'Привет! Во вложении резюме, которое я для тебя подготовила.'
+
+RECOMMENDATIONS_SENT_BY_EMAIL_EMAIL_BODY = 'Привет! Во вложении файл с рекомендациями, который я для тебя подготовила.'
 
 SELECT_VACANCIES = '''Привет! Я ИИ-Ассистент Найта, который помогает талантам в трудоустройстве. 
 
@@ -224,3 +226,6 @@ other: [другая информация обо мне] or []
 '''
     response = ya_gpt_client.completion(prompt).replace("```", "").strip()
     return response
+
+def recommendations_sent(user_vacancy):
+    return f'Отправила тебе файл с рекомендациями по вакансии <b>{Vacancy.query.get(user_vacancy.vacancy_id).name}</b> на почту'

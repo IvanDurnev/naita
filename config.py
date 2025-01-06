@@ -58,5 +58,9 @@ class Config(object):
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')
     MAIL_FOR_FEEDBACK = os.environ.get('MAIL_FOR_FEEDBACK').split()
 
+    #DADATA
+    DADATA_TOKEN = os.getenv('DADATA_TOKEN') or None
+    DADATA_SECRET = os.getenv('DADATA_SECRET') or None
+
     # НАСТРОЙКИ АНАЛИТИКИ
     MIN_COINCEDENCE_VALUE = int(os.environ.get('MIN_COINCEDENCE_VALUE')) or 7

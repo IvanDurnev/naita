@@ -1,3 +1,4 @@
+import datetime
 import json
 import requests
 from sqlalchemy.testing.plugin.plugin_base import logging
@@ -6,7 +7,7 @@ from app import db, sess, redis_client, mail
 from app.chat.routes import emit_response
 from app.main import bp
 from flask import render_template, redirect, request, Response, jsonify, session
-from app.models import User, load_user, Message
+from app.models import User, load_user, Message, UserVacancy
 from flask_login import login_user, logout_user, current_user
 from app.yagpt.yagpt import YAGPT
 from config import Config
@@ -27,12 +28,11 @@ def index_main():
     return render_template(template_name_or_list='main/index.html',
                            vk_redirect_uri=Config.VK_ID_REDIRECT_URI)
 
-@bp.get('/test')
+@bp.get('/ping')
 def test():
-    ya = YAGPT()
-    ya.ask_assistant('Расскажи о банке', current_user)
-    return 'Куку'
-
+    # ya = YAGPT()
+    # ya.ask_assistant('Расскажи о банке', current_user)
+    return 'pong'
 
 @bp.get('/cv')
 def cv():
@@ -54,10 +54,29 @@ def cv():
 
     HTML(string=render_template('main/cv.html', info=info)).write_pdf(cv_file_path)
 
+    # добавить файл с резюме в файлы ассистента
+    ya_gpt_client = YAGPT()
+    try:
+        ya_gpt_client.del_search_index(current_user.current_search_index['id'])
+        current_user.current_search_index = None
+        logging.info(f'Удален неактуальный поисковый индекс пользователя {current_user.id}')
+    except Exception as e:
+        logging.info(f'Не удалось удалить поисковый индекс пользователя {current_user.id} {e}')
+    try:
+        ya_gpt_client.del_assistant(current_user.ya_assistant_id)
+        current_user.ya_assistant_id = ''
+        logging.info(f'Удален неактуальный ассистент пользователя {current_user.id}')
+    except Exception as e:
+        logging.info(f'Не удалось удалить старый ассистент пользователя {current_user.id} {e}')
+
+    current_user.current_ya_thread = ''
+    db.session.commit()
+    current_user.create_personal_ya_assistant()
+
     # отправляем резюме на почту пользователю
     try:
         msg = MailMessage(
-            'НАЙТА, код авторизации.',
+            subject='CV',
             sender=Config.MAIL_DEFAULT_SENDER,
             recipients=[current_user.email]
         )
@@ -77,6 +96,59 @@ def cv():
 
     return render_template('main/cv.html', info=info)
 
+@bp.get('/recommendations')
+def recommendations():
+    from weasyprint import HTML
+    from app.chat import texts
+    mv = current_user.get_main_vacancy()
+    user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
+                                            UserVacancy.vacancy_id == mv.id).first()
+    from dadata import Dadata
+    token = Config.DADATA_TOKEN
+    secret = Config.DADATA_SECRET
+    dadata = Dadata(token, secret)
+    result = dadata.clean("name", current_user.name)
+
+    info = {
+        'name': current_user.name,
+        'name_rod': result.get('result_genitive', current_user.name),
+        'vacancy': mv.name,
+        'negative': user_vacancy.negative,
+        'positive': user_vacancy.positive,
+        'recommendations': user_vacancy.recommendations,
+        'date': datetime.datetime.now().strftime("%d.%m.%Y")
+    }
+
+    # путь сохранения рекомендаций
+    recommendations_saving_path = os.path.join(Config.STATIC_FOLDER, 'users', str(current_user.id), 'recommendations')
+    recommendations_file_path = os.path.join(recommendations_saving_path, f'{mv.name}.pdf')
+    if not os.path.exists(recommendations_saving_path):
+        os.makedirs(recommendations_saving_path)
+
+    HTML(string=render_template('main/recommendations.html', info=info)).write_pdf(recommendations_file_path)
+
+    # отправить рекомендации пользователю на почту
+    try:
+        msg = MailMessage(
+            subject=f'Рекомендации по вакансии {mv.name}',
+            sender=Config.MAIL_DEFAULT_SENDER,
+            recipients=[current_user.email]
+        )
+        msg.body = texts.RECOMMENDATIONS_SENT_BY_EMAIL_EMAIL_BODY
+
+        # Добавление файла как вложения
+        with open(recommendations_file_path, 'rb') as f:
+            msg.attach(
+                filename=f'{mv.name}.pdf',
+                content_type="application/pdf",
+                data=f.read()
+            )
+
+        mail.send(msg)
+    except Exception as e:
+        logging.info(f'Не удалось отправить email c рекомендациями. {e}')
+
+    return render_template('main/recommendations.html', info=info)
 
 @bp.post('/verify_email')
 def verify_email():
@@ -95,7 +167,6 @@ def verify_email():
         logging.error(f'Не удалось создать/найти пользователя по электронной почте. {e}')
         return Response(status=500)
 
-
 @bp.post('/verify_email_code')
 def verify_email_code():
     try:
@@ -109,7 +180,6 @@ def verify_email_code():
     except Exception as e:
         logging.error(f'Не удалось залогинить пользователя по электронной почте. {e}')
         return Response(status=500)
-
 
 @bp.post('/vk_login')
 def index_vk_login():
@@ -158,12 +228,10 @@ def index_vk_login():
         logging.error(f'Не удалось залогинить пользователя {e}')
     return Response(status=500)
 
-
 @bp.get('/logout')
 def logout():
     logout_user()
     return Response(status=200)
-
 
 @bp.post('/chat_event')
 def chat_event():
@@ -175,7 +243,6 @@ def chat_event():
         # Ответить на сообщение
         send_response_message(user_id, "Спасибо за ваше сообщение!")
     return jsonify({"status": "received"}), 200
-
 
 def send_response_message(user_id, message_text):
     import requests

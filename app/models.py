@@ -25,7 +25,6 @@ import mimetypes
 def load_user(id):
     return User.query.get(int(id))
 
-
 class User(UserMixin, db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(Text, nullable=False, default='')
@@ -50,17 +49,18 @@ class User(UserMixin, db.Model):
     last_name = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, вашу фамилию."}, default='')
     phone = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваш номер телефона."}, default='')
     city = Column(Text, info={"check_unfilled": True, "question": "Напишите, пожалуйста, ваш город."}, default='')
-    relocation_ready = Column(Text, comment='Готовность к релокации', info={"check_unfilled": True, "question": "Готовы ли вы к релокации?"}, default='')
-    remote_ready = Column(Text, comment='Готовность к удаленной работе', info={"check_unfilled": True, "question": "Готовы ли вы к удаленной работе?"}, default='')
-    professional_experience = Column(Text, comment='Опыт работы', info={"check_unfilled": True, "question": "Опишите ваш опыт"}, default='')
-    skills = Column(Text, comment='Описание навыков', info={"check_unfilled": True, "question": "Напишите, пожалуйста, подробно ваши профессиональные навыки."}, default='')
-    education = Column(Text, comment='Образования', info={"check_unfilled": True, "question": "Напишите, пожалуйста, какое у вас образование (учебное заведение, специальность, год окончания, ученая степень)?"}, default='')
-    profile_assessment = Column(Text, default='')
+    # relocation_ready = Column(Text, comment='Готовность к релокации', info={"check_unfilled": True, "question": "Готовы ли вы к релокации?"}, default='')
+    # remote_ready = Column(Text, comment='Готовность к удаленной работе', info={"check_unfilled": True, "question": "Готовы ли вы к удаленной работе?"}, default='')
+    # professional_experience = Column(Text, comment='Опыт работы', info={"check_unfilled": True, "question": "Опишите ваш опыт"}, default='')
+    # skills = Column(Text, comment='Описание навыков', info={"check_unfilled": True, "question": "Напишите, пожалуйста, подробно ваши профессиональные навыки."}, default='')
+    # education = Column(Text, comment='Образования', info={"check_unfilled": True, "question": "Напишите, пожалуйста, какое у вас образование (учебное заведение, специальность, год окончания, ученая степень)?"}, default='')
+    # profile_assessment = Column(Text, default='')
     profile_filled = Column(Boolean, default=False)
     coincidences_done = Column(Boolean, default=False)
 
     ya_assistant_id = Column(Text)
     current_ya_thread = Column(Text)
+    current_search_index = Column(JSONB)
     ya_user_id = Column(Text)
 
     profile = Column(JSONB)
@@ -351,6 +351,7 @@ class UserVacancy(db.Model):
     user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))
     vacancy_id = Column(Integer, ForeignKey('vacancy.id', ondelete='CASCADE'))
     is_main = Column(Boolean, default=False)
+    former_main = Column(Boolean, default=False)
     value = Column(Integer)
     positive = Column(Text)
     negative = Column(Text)

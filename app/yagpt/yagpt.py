@@ -295,7 +295,6 @@ class YAGPT:
                 print(f"Ошибка декодирования JSON: {e}")
         return None
 
-
     def create_thread(self, user, expiration_config=None, labels=None):
         url = 'https://rest-assistant.api.cloud.yandex.net/assistants/v1/threads'
         if expiration_config is None:
@@ -504,33 +503,52 @@ class YAGPT:
 
 class KnowledgeBase:
     def __init__(self, user):
-        self.files_path = os.path.join(Config.STATIC_FOLDER, 'knowledge_base')
-        self.files = [
-            {
-                'filename': path,
-                'hash': self.calculate_file_hash(path),
-                'ya_file_id': '',
-                'created': datetime.now().strftime('%d.%m.%Y %H:%M:%S'),
-                'updated': ''
-            }
-            for path in os.listdir(self.files_path)
-        ]
+        self.user_id = user.id
+        self.common_files_path = os.path.join(Config.STATIC_FOLDER, 'knowledge_base')
+        self.private_files_path = os.path.join(Config.STATIC_FOLDER, 'users', str(user.id))
+        self.files = []
+        for path in os.listdir(self.common_files_path):
+            self.files.append(
+                {
+                    'filename': path,
+                    'hash': self.calculate_file_hash(os.path.join(self.common_files_path, path)),
+                    'ya_file_id': '',
+                    'created': datetime.now().strftime('%d.%m.%Y %H:%M:%S'),
+                    'updated': '',
+                    'private': 0
+                }
+            )
+        for path in os.listdir(self.private_files_path):
+            full_path = os.path.join(self.private_files_path, path)
+            if os.path.isfile(full_path):
+                mime_type, _ = mimetypes.guess_type(full_path)
+                if mime_type in ('text/plain', 'application/pdf'):
+                    self.files.append(
+                        {
+                            'filename': path,
+                            'hash': self.calculate_file_hash(os.path.join(self.private_files_path, path)),
+                            'ya_file_id': '',
+                            'created': datetime.now().strftime('%d.%m.%Y %H:%M:%S'),
+                            'updated': '',
+                            'private': 1
+                        }
+                    )
         self.search_index = {}
-        # загрузить общедоступные файлы
-        self.check_files_integrity()
+        # загрузить общедоступные и личные файлы
+        self.check_files_integrity(user)
         # создать поисковый индекс
-        self.check_search_index()
+        self.check_search_index(user)
         # создать ассистента
         self.check_personal_assistant(user)
 
     def calculate_file_hash(self, path):
         sha256_hash = hashlib.sha256()
-        with open(os.path.join(self.files_path, path), "rb") as f:
+        with open(path, "rb") as f:
             for byte_block in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
 
-    def check_files_integrity(self):
+    def check_files_integrity(self, user):
         ya = YAGPT()
         updated_files = []
         deleted_files = []
@@ -540,12 +558,15 @@ class KnowledgeBase:
         current_files = {file.get('filename'): file for file in self.files}
 
         # Получение всех ключей в Redis, связанных с файлами
-        redis_pattern = f"{Config.REDIS_KEY_PREFIX}:common_files:*"
-        redis_keys = redis_client.keys(redis_pattern)
+        redis_common_files_pattern = f"{Config.REDIS_KEY_PREFIX}:common_files:*"
+        redis_common_files_keys = redis_client.keys(redis_common_files_pattern)
+        redis_private_files_pattern = f"{Config.REDIS_KEY_PREFIX}:private_files_user_{user.id}:*"
+        redis_private_files_keys = redis_client.keys(redis_private_files_pattern)
 
         # Сравнение текущих файлов с файлами в Redis
-        for redis_key in redis_keys:
+        for redis_key in redis_common_files_keys+redis_private_files_keys:
             filename = redis_key.decode("utf-8").split(":")[-1]
+            file_path = os.path.join(self.private_files_path, filename) if redis_client.hget(redis_key, "private") else os.path.join(self.common_files_path, filename)
 
             if filename not in current_files:
                 # Файл есть в Redis, но нет в папке
@@ -556,11 +577,11 @@ class KnowledgeBase:
                 redis_hash = redis_client.hget(redis_key, "hash").decode("utf-8")
                 if file.get("hash") != redis_hash:
                     updated_files.append(file)
-                    redis_client.hset(redis_key, 'hash', self.calculate_file_hash(filename))
+                    redis_client.hset(redis_key, 'hash', self.calculate_file_hash(file_path))
                     try:
                         ya.del_file(redis_client.hget(redis_key, "ya_file_id").decode("utf-8"))
-                        with open(os.path.join(self.files_path, filename), "rb") as f:
-                            mime_type, _ = mimetypes.guess_type(os.path.join(self.files_path, filename))
+                        with open(file_path, "rb") as f:
+                            mime_type, _ = mimetypes.guess_type(os.path.join(self.common_files_path, filename))
                             if file := ya.create_file(name=filename, content=f.read(), mime_type=mime_type,
                                                       description=filename):
                                 redis_client.hset(redis_key, 'ya_file_id', file.get('id', ''))
@@ -569,16 +590,18 @@ class KnowledgeBase:
                         logging.error(
                             f'KnowledgeBase.check_files_integrity() не удалось обновить в ya файл {file}. {e}')
 
-
         # Поиск новых файлов
         for filename, file in current_files.items():
-            redis_key = f"{Config.REDIS_KEY_PREFIX}:common_files:{filename}"
+            redis_key = f"{Config.REDIS_KEY_PREFIX}:private_files_user_{user.id}:{filename}" if file['private'] else f"{Config.REDIS_KEY_PREFIX}:common_files:{filename}"
+            file_path = os.path.join(self.private_files_path, filename) if redis_client.hget(redis_key,"private") else os.path.join(self.common_files_path, filename)
+
             if not redis_client.exists(redis_key):
                 # новые файлы записываем в redis и в яндекс
+                print(redis_key, file)
                 redis_client.hset(redis_key, mapping=file)
                 try:
-                    with open(os.path.join(self.files_path, filename), "rb") as f:
-                        mime_type, _ = mimetypes.guess_type(os.path.join(self.files_path, filename))
+                    with open(os.path.join(self.common_files_path, filename), "rb") as f:
+                        mime_type, _ = mimetypes.guess_type(os.path.join(self.common_files_path, filename))
                         if file:=ya.create_file(name=filename, content=f.read(), mime_type=mime_type, description=filename):
                             redis_client.hset(redis_key, 'ya_file_id', file.get('id', ''))
                 except Exception as e:
@@ -597,10 +620,15 @@ class KnowledgeBase:
         # Удаление записей о файлах, которые отсутствуют в папке
         for filename in deleted_files:
             redis_key = f"{Config.REDIS_KEY_PREFIX}:common_files:{filename}"
-            ya.del_file(redis_client.hget(redis_key, "ya_file_id").decode("utf-8"))
-            logging.info(f"Запись о файле {filename} удалена из Ya.")
-            redis_client.delete(redis_key)
-            logging.info(f"Запись о файле {filename} удалена из Redis.")
+            if not redis_client.exists(redis_key):
+                redis_key = f"{Config.REDIS_KEY_PREFIX}:private_files_user_{user.id}:{filename}"
+            try:
+                ya.del_file(redis_client.hget(redis_key, "ya_file_id").decode("utf-8"))
+                logging.info(f"Запись о файле {filename} удалена из Ya.")
+                redis_client.delete(redis_key)
+                logging.info(f"Запись о файле {filename} удалена из Redis.")
+            except Exception as e:
+                logging.info(f'Не удалось удалить файл {filename}')
 
         # Обновление self.files данными из Redis
         self.files = [
@@ -618,7 +646,7 @@ class KnowledgeBase:
             'new_files': new_files
         }
 
-    def check_search_index(self):
+    def check_search_index(self, user):
         ya = YAGPT()
 
         # ya.get_search_indexes_list()
@@ -627,9 +655,9 @@ class KnowledgeBase:
         # return
 
         # Получение ключа Redis с поисковым индексом
-        redis_key = f"{Config.REDIS_KEY_PREFIX}:common_search_index"
-        search_index = redis_client.hgetall(redis_key)
-        if not search_index:
+        # redis_key = f"{Config.REDIS_KEY_PREFIX}:common_search_index"
+        # search_index = redis_client.hgetall(redis_key)
+        if not user.current_search_index:
             ya_search_index_operation = ya.create_search_index(
                 name='Найта',
                 file_ids=[file.get('ya_file_id') for file in self.files],
@@ -639,7 +667,7 @@ class KnowledgeBase:
             if ya_search_index_operation:
                 while True:
                     response = ya.get_operation_status(ya_search_index_operation.get('id'))
-                    if response.get('done') == True:
+                    if response.get('done'):
                         operation_result = response.get('response')
                         break
                     else:
@@ -652,10 +680,12 @@ class KnowledgeBase:
                 'created': operation_result.get('createdAt'),
                 'updated': operation_result.get('updatedAt')
             }
-            redis_client.hmset(redis_key, self.search_index)
+            # redis_client.hmset(redis_key, self.search_index)
+            user.current_search_index = self.search_index
+            db.session.commit()
             return True
 
-        self.search_index = {key.decode('utf-8'): value.decode('utf-8') for key, value in search_index.items()}
+        self.search_index = user.current_search_index
         return True
 
     def check_personal_assistant(self, user):
@@ -666,7 +696,7 @@ class KnowledgeBase:
                 {
                     "searchIndex": {
                         "searchIndexIds": [
-                            self.search_index.get('id')
+                            user.current_search_index['id']
                         ],
                         "maxNumResults": "1"
                     }

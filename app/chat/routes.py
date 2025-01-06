@@ -1,5 +1,4 @@
 import os
-
 from app.models import Message, Resume, outgoing_message, incoming_message, UserData, Vacancy, UserVacancy
 from flask import request, jsonify, session, Response
 from flask_login import current_user
@@ -202,6 +201,28 @@ def del_messages_history():
     for resume in Resume.query.filter(Resume.user == current_user.id).all():
         db.session.delete(resume)
 
+    # удаляем аттрибуты яндекс ассистента
+    ya_gpt_client = YAGPT()
+    try:
+        ya_gpt_client.del_search_index(current_user.current_search_index['id'])
+        current_user.current_search_index = None
+        logging.info(f'Удален неактуальный поисковый индекс пользователя {current_user.id}')
+    except Exception as e:
+        logging.info(f'Не удалось удалить поисковый индекс пользователя {current_user.id} {e}')
+    try:
+        ya_gpt_client.del_assistant(current_user.ya_assistant_id)
+        current_user.ya_assistant_id = ''
+        logging.info(f'Удален неактуальный ассистент пользователя {current_user.id}')
+    except Exception as e:
+        logging.info(f'Не удалось удалить старый ассистент пользователя {current_user.id} {e}')
+    current_user.current_ya_thread = ''
+
+    # удаляем файлы пользователя (CV)
+    try:
+        os.remove(os.path.join(Config.STATIC_FOLDER, 'users', str(current_user.id), 'cv.pdf'))
+    except Exception as e:
+        logging.info(f'Не удалось удалить файл CV пользователя {current_user.id} {e}')
+
     db.session.commit()
     emit('response', {'text': 'Перезагрузи страницу', 'type': 'text'})
     return Response(status=200)
@@ -238,6 +259,17 @@ def handle_message_btn_click(data):
                 emit('response', {'text': texts.NEW_VACANCY_SELECTED, 'type': 'text', 'disable_input': False})
             else:
                 emit('response', {'text': texts.NEW_VACANCY_SELECTED, 'type': 'text', 'disable_input': True})
+            # делаем текущую главную вакансию не главной
+            user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
+                                                    UserVacancy.is_main.is_(True)
+                                                    ).all()
+            # помечаем ее как бывшую главную
+            for uv in user_vacancy:
+                uv.is_main = False
+                uv.former_main = True
+            db.session.commit()
+
+            # делаем новую выбранную вакансию главной
             vacancy = Vacancy.query.filter(Vacancy.name == data.get('text')).first()
             user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
                                                     UserVacancy.vacancy_id == vacancy.id).first()
@@ -257,7 +289,6 @@ def test_fun(data):
     content = f'Запрос: {"расскажи о банке"}\n\nПользователь: {current_user.get_user_data()}'
     response = f'{openai_proxy_client.ask_assistant(content, current_user)}'.strip()
     print(response)
-
 
 @chat_bp.get('/messages')
 def messages_history():
@@ -393,11 +424,30 @@ def get_main_vacancy_coincidence():
         return send_main_vacancy_coincidence_analytics_result(user_vacancy)
 
 def send_main_vacancy_coincidence_analytics_result(user_vacancy):
-    emit_response({
-        'text': f'##### Результаты анализа\n\n###### Положительные стороны:\n{user_vacancy.positive}\n\n###### Отрицательные нюансы:\n{user_vacancy.negative}',
-        'type': 'text',
-        'disabled_input': True,
-    })
+    # emit_response({
+    #     'text': f'##### Результаты анализа\n\n###### Положительные стороны:\n{user_vacancy.positive}\n\n###### Отрицательные нюансы:\n{user_vacancy.negative}',
+    #     'type': 'text',
+    #     'disabled_input': True,
+    # })
+    from app.main.routes import recommendations
+    emit_response(
+        {
+            'text': recommendations(),
+            'type': 'text',
+            'format': 'html',
+            'disabled_input': True,
+        }
+    )
+
+    # уведомить пользователя об отправке рекомендаций на почту
+    emit_response(
+        {
+            'text': texts.recommendations_sent(user_vacancy),
+            'type': 'text',
+            'format': 'html'
+        }
+    )
+
     if user_vacancy.value >= Config.MIN_COINCEDENCE_VALUE:
         emit_response({
             'text': texts.main_vacancy_coincedence_analysis_success(current_user),
@@ -528,33 +578,4 @@ def emit_vacancies_menu():
                           'btns': vacancies,
                           'callback': 'vacancy',
                           'disable_answer': True})
-
-
-# def get_vacancies_coincidences_background(prompt, uid):
-#     from app import create_app
-#     ya_gpt_client = YAGPT()
-#     response = ya_gpt_client.completion(prompt).replace("```", "").strip()
-#
-#     if response:
-#         coincidences = json.loads(response)
-#
-#         with create_app(Config).app_context():
-#             for c in coincidences:
-#                 try:
-#                     user_vacancy = UserVacancy()
-#                     user_vacancy.vacancy_id = c['vid']
-#                     user_vacancy.user_id = uid
-#                     user_vacancy.positive = c['positive']
-#                     user_vacancy.negative = c['negative']
-#                     user_vacancy.value = int(c['value'])
-#                     db.session.add(user_vacancy)
-#                     db.session.commit()
-#                 except Exception as e:
-#                     logging.error(f'Не удалось сохранить соответствие вакансии пользователю {uid}, {e}')
-#             user: User = User.query.get(uid)
-#             user.coincidences_done = True
-#             db.session.commit()
-#             logging.info(f'Для пользователя {uid} сохранены соответствия вакансиям')
-#             return
-#     logging.info(f'Для пользователя {uid} не удалось сохранить соответствие вакансиям.')
 
