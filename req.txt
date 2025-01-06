@@ -16,6 +16,7 @@ charset-normalizer==3.3.2
 click==8.1.7
 cryptography==44.0.0
 cssselect2==0.7.0
+dadata==24.10.0
 distro==1.9.0
 Flask==3.0.3
 Flask-Cors==5.0.0

@@ -136,9 +136,12 @@ def handle_message_secure(data):
                 # content = f'Запрос: {uncleared_request}\n\nПользователь: {current_user.get_user_data()}'
                 content = uncleared_request
                 try:
+                    # ТУТ ОТВЕЧАЕТ АССИСТЕНТ
                     # response = ya_gpt_client.ask_assistant(uncleared_request, current_user)
                     response = ya_gpt_client.ask_assistant(content, current_user)
-                    emit_response({'text': response, 'type': 'text'})
+                    # Если в процессе сбора информации от пользователя у ассистента нет ответа на вопрос - не отправляем его
+                    if response.strip() != 'Нет ответа' and not current_user.is_profile_complete():
+                        emit_response({'text': response, 'type': 'text'})
                 except Exception as e:
                     logging.error(f'Не удалось получить ответ от яндекс ассистента, {e}')
 
