@@ -14,6 +14,9 @@
     const filePreview = document.getElementById('file-preview');
     const assistantTyping = document.getElementById('assistant-typing');
     const fillInfoModal = new bootstrap.Modal('#fillInfoStaticBackdrop', {})
+    const logoutEmptyChatSuggestsWrapper = document.getElementById('logout-empty-chat-suggests')
+    const logoutSuggests = document.querySelectorAll('.logout-suggest')
+    logoutSuggests.forEach(el => el.addEventListener('click', logoutSuggestClick))
     let currentCallback = ''
     let userEmail = ''
 
@@ -166,7 +169,8 @@
 
     // Функция добавления сообщения в интерфейс чата
     function appendMessage(message) {
-        console.log(message);
+        {#console.log(message);#}
+        $(logoutEmptyChatSuggestsWrapper).hide();
         let messageText = message.text
         let messageType = message.sender_id ? 'outgoing' : 'incoming'
         let messageButtons = message.btns
@@ -186,7 +190,7 @@
         messageElement.appendChild(textElement);
         messagesContainer.appendChild(messageElement);
 
-        console.log(messageElement);
+        {#console.log(messageElement);#}
 
         if (messageButtons) {
             messageButtons.forEach(btnText => {
@@ -295,5 +299,27 @@
 
     function testFun() {
         secureSocket.emit('testFun', {});
+    }
+
+    function logoutSuggestClick(ev) {
+        let question = ev.currentTarget.dataset.suggest
+        let questionText = ev.currentTarget.innerText
+
+
+        let answers = {
+            'interview': 'Это здорово! Авторизуйся и давай начнем.',
+            'cv': 'С большим удовольствием! Зарегистрируйся, пожалуйста и давай начнем.',
+            'get-in': 'Нужно пройти собеседование со мной, я составлю твое резюме, отправлю его тебе и смэтчу тебя с нашим HR.',
+            'improve-cv': 'Для начала давай его сделаем. Для этого авторизуйся и давай пообщаемся.'
+        }
+
+        appendMessage({
+            text: questionText,
+            sender_id: '0'
+        })
+
+        appendMessage({
+            text: answers[question]
+        })
     }
 </script>

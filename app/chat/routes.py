@@ -32,7 +32,7 @@ def handle_connect_secure():
         else:
             emit('fillInfo')
         return emit('response', {'text': texts.HELLO_LOGIN, 'type': 'text'})
-    return emit('response', {'text': texts.HELLO_LOGOUT, 'type': 'text'})
+    # return emit('response', {'text': texts.HELLO_LOGOUT, 'type': 'text'})
 
 @socketio.on('disconnect', namespace='/secure_chat')
 def handle_disconnect_secure():

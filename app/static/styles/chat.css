@@ -14,8 +14,33 @@
     bottom: 2%;
     left: 50%;
     transform: translateX(-50%);
-    width: calc(75% - 10px);
+    width: 1280px;
+    max-width: 1280px;
     padding: 5px 20px;
+}
+
+#logout-empty-chat-suggests {
+    display: grid;
+    justify-content: center;
+    justify-items: center;
+    grid-gap: 30px;
+
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    top: 70%;
+    left: 50%;
+    transform: translate(-50%);
+}
+
+#logout-empty-chat-suggests a {
+    align-content: center;
+    padding: 5px 20px;
+    margin-bottom: 10px;
+}
+
+#logout-empty-chat-suggests a:hover {
+    background: linear-gradient(90deg, #9E6FC3 0%, #B693D2 100%);
 }
 
 #chat-input[disabled], #chat-input[disabled] * {
@@ -121,3 +146,59 @@
 }
 
 #assistant-typing {}
+
+@media screen and (max-width: 1399px) {
+    #chat-input {
+        width: 1100px;
+    }
+}
+
+@media screen and (max-width: 1199px) {
+    #chat-input {
+        width: 920px;
+    }
+}
+
+@media screen and (max-width: 991px) {
+    #chat-input {
+        width: 680px;
+    }
+
+    #logout-empty-chat-suggests {
+        grid-gap: 20px;
+    }
+
+    #logout-empty-chat-suggests a {
+        font-size: 12px;
+        padding: 3px 10px;
+        margin-bottom: 5px;
+    }
+}
+
+@media screen and (max-width: 767px) {
+    #chat-input {
+        width: 500px;
+    }
+}
+
+@media screen and (max-width: 575px) {
+    #chat-input {
+        width: calc(90%);
+    }
+}
+
+@media screen and (max-width: 413px) {
+#logout-empty-chat-suggests {
+        grid-gap: 10px;
+    }
+
+    #logout-empty-chat-suggests h3 {
+        font-size: 18px;
+    }
+
+    #logout-empty-chat-suggests a {
+        font-size: 12px;
+        padding: 0 10px;
+        margin-bottom: 4px;
+    }
+}

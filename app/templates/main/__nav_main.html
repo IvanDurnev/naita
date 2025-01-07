@@ -1,7 +1,7 @@
 <nav id="header-nav" class="navbar bg-body-tertiary">
     <div id="logo-wrapper" class="container-fluid">
         <a class="navbar-brand" href="#">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" width="30" height="24" class="d-inline-block align-text-top">
+            <img src="{{ url_for('static', filename='images/logo_big.png') }}" alt="Logo" width="30" height="24" class="d-inline-block align-text-top">
             Найта
         </a>
         <span id="assistant-typing"></span>
@@ -9,7 +9,10 @@
     <div id="nav-menu">
         {% if not current_user.is_authenticated %}
             <div id="user-info">
-                <a class="btn btn-lightgrey" data-bs-toggle="modal" data-bs-target="#loginStaticBackdrop"><i class="bi bi-box-arrow-in-right"></i></a>
+                <a id="auth-btn" class="btn btn-lightgrey" data-bs-toggle="modal" data-bs-target="#loginStaticBackdrop">
+                    <i class="bi bi-person"></i>
+                    <span>Авторизация</span>
+                </a>
             </div>
         {% else %}
             <div id="user-info">
