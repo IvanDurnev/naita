@@ -31,9 +31,11 @@
     secureSocket.on('connect', () => {
         loadMessages(clear=false);
         $(chatInput).removeAttr('disabled');
+        chatInput.classList.remove('disabled')
     });
     secureSocket.on('disconnect', () => {
         $(chatInput).prop('disabled', true);
+        chatInput.classList.add('disabled')
     });
     secureSocket.on('response', socketMessageResponse);
     secureSocket.on('naitaAction', socketNaitaAction);
@@ -148,7 +150,7 @@
 
     // Отправка файла
     fileBtn.addEventListener('click', () => {
-        fileInput.click();
+        {#fileInput.click();#}
     });
 
     fileInput.addEventListener('change', () => {
@@ -178,6 +180,11 @@
         let disableAnswer = message.disable_answer
         let messageId = message.id ? message.id : 0
         let format = message.format ? message.format : 'markdown'
+
+        if (disableAnswer)
+            chatInput.classList.add('disabled')
+        else
+            chatInput.classList.remove('disabled')
 
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', messageType);

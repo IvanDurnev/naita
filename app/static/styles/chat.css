@@ -43,7 +43,7 @@
     background: linear-gradient(90deg, #9E6FC3 0%, #B693D2 100%);
 }
 
-#chat-input[disabled], #chat-input[disabled] * {
+#chat-input[disabled], #chat-input.disabled, #chat-input[disabled] *, #chat-input.disabled * {
     background-color: #c4c4c4!important;
     border-color: #c4c4c4!important;
     pointer-events: none;
