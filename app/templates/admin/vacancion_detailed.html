@@ -1,0 +1,12 @@
+{% extends 'admin/index.html' %}
+
+{% block content %}
+    {% include 'admin/__nav_admin.html' %}
+    <div id="main-container" class="container">
+        {% include 'admin/__vacancy_detailed.html' %}
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+{% endblock %}

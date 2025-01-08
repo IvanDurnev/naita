@@ -33,3 +33,75 @@
     display: grid;
     grid-template-columns: repeat(5, 1fr);
 }
+
+.li_a {
+    text-decoration: none;
+    color: black;
+}
+
+#vacancy-detailed-wrapper {
+    display: grid;
+    grid-gap: 15px;
+}
+
+.link-green {
+    text-decoration: none;
+    color: #84B800;
+}
+
+#chat-user-list {
+    display: grid;
+    grid-gap: 20px;
+    height: 100%;
+    overflow-y: scroll;
+    border-right: 2px solid #E6E6E6;
+    padding: 30px 10px 0 30px;
+    align-content: start;
+}
+
+#chat-user-info {
+    padding: 30px 30px 0 30px;
+}
+
+#vacancy-chat-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 3fr;
+    align-items: start;
+    height: 70vh;
+
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0px 4px 3px 0px #00000012;
+    overflow-y: hidden;
+}
+
+.vacancy-chat-user-item {
+    display: grid;
+    grid-template-columns: 1fr 3fr;
+    cursor: pointer;
+}
+.vacancy-chat-user-item:hover {
+    font-weight: bold;
+}
+.vacancy-chat-user-item.active {
+    font-weight: bold;
+}
+
+.vacancy-chat-user-item-avatar-img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+}
+
+.user-details-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+.user-details-header .left {
+    justify-self: start; /* Выравнивание по левому краю */
+    text-align: left; /* Дополнительно для текста */
+}
+.user-details-header .right {
+    justify-self: end; /* Выравнивание по правому краю */
+    text-align: right; /* Дополнительно для текста */
+}

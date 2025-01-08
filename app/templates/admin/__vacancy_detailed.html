@@ -1,0 +1,66 @@
+<div id="vacancy-detailed-wrapper">
+    <a class="link-green" href="{{ url_for('admin.admin') }}">Назад</a>
+    <h3>{{ title }}</h3>
+    <div id="vacancy-chat-wrapper">
+        <div id="chat-user-list">
+            {% for u in users %}
+                {% set user = u.get_user() %}
+                <div id="user-chat-{{ user.id }}" data-uid="{{ user.id }}" class="vacancy-chat-user-item">
+                    <div class="vacancy-chat-user-item-avatar-wrapper">
+                        <img
+                                class="vacancy-chat-user-item-avatar-img"
+                                src="{{ url_for('static', filename='users/'+user.id|string+'/avatar.jpg') }}"
+                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='users/default/avatar_pixar.jpg') }}';">
+                    </div>
+                    <div class="vacancy-chat-user-item-status">
+                        <p class="m-0">{{ user.name or user.email }}</p>
+                        <p class="m-0">Статус</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <div id="chat-user-info">
+            {% for u in users %}
+                {% set user = u.get_user() %}
+                <div id="user-details-{{ user.id }}" data-uid="{{ user.id }}" class="user-details-wrapper" hidden>
+                    <div class="user-details-header">
+                        <h5 class="left">{{ user.name or user.email }}</h5>
+                        <div class="form-check form-check-reverse form-switch right">
+                            <label class="form-check-label" for="flexSwitchCheckDefault">Режим редактора</label>
+                            <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
+                        </div>
+                    </div>
+                    <div class="user-details-body">
+                        <div class="user-details-body-nav">
+                            <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
+                                <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="btnradio1">Radio 1</label>
+
+                                <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="btnradio2">Radio 2</label>
+
+                                <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="btnradio3">Radio 3</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    let usersNodes = document.querySelectorAll('.vacancy-chat-user-item')
+    usersNodes.forEach(el => el.addEventListener('click', setUserActive))
+    let usersDetailsNodes = document.querySelectorAll('.user-details-wrapper')
+
+    function setUserActive(ev) {
+        usersNodes.forEach(el => el.classList.remove('active'))
+        ev.currentTarget.classList.add('active')
+        let uid = ev.currentTarget.dataset.uid
+
+        usersDetailsNodes.forEach(el => el.setAttribute('hidden', true))
+        document.querySelector(`#user-details-${uid}`).removeAttribute('hidden')
+    }
+</script>

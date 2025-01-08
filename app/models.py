@@ -77,6 +77,7 @@ class User(UserMixin, db.Model):
 
     # Отношение для вакансий подходящих пользователю
     vacancies = db.relationship("Vacancy", secondary="user_vacancy", back_populates="users")
+    # user_vacancies = db.relationship("UserVacancy", back_populates="user", cascade="all, delete-orphan")
 
     def get_avatar(self):
         avatar_path = os.path.join(Config.STATIC_FOLDER, 'users', str(self.id), 'avatar.jpg')
@@ -368,6 +369,9 @@ class UserVacancy(db.Model):
 
     def get_vacancy(self):
         return Vacancy.query.filter(Vacancy.id == self.vacancy_id).first()
+
+    def get_user(self):
+        return User.query.filter(User.id == self.user_id).first()
 
 class YaAssistantMessage(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)

@@ -1,6 +1,6 @@
 from app import db
 from flask import render_template, request, session, Response
-from flask_login import current_user, login_user
+from flask_login import current_user, login_user, login_required
 from app.admin import bp
 from app.models import User, Vacancy, UserVacancy
 import logging
@@ -21,9 +21,6 @@ order by v.id, u.id;
     '''
     vacancies_df = pd.read_sql_query(sql=vacancies_sql, con=db.engine)
     users_vacancies_df = pd.read_sql_query(sql=users_vacancies_sql, con=db.engine)
-
-    # Преобразование DataFrame в список словарей
-    # vacancies = vacancies_df.to_dict(orient='records')
 
     # Фильтрация users_vacancies_df по условию is_main is True
     filtered_users_vacancies = users_vacancies_df[users_vacancies_df['is_main'] == True]
@@ -46,9 +43,6 @@ order by v.id, u.id;
 
     # Заполнение пустых списков для вакансий без связанных пользователей
     summary_df['users'] = summary_df['users'].apply(lambda x: x if isinstance(x, list) else [])
-
-    # Итоговый DataFrame
-    print(summary_df.head())
 
     vacancies = summary_df.to_dict(orient='records')
 
@@ -74,7 +68,6 @@ def verify_email():
     session['user_email'] = admin.email
     return Response(status=200)
 
-
 @bp.post('/admin/verify_email_code')
 def verify_email_code():
     try:
@@ -88,3 +81,13 @@ def verify_email_code():
     except Exception as e:
         logging.error(f'Не удалось залогинить пользователя по электронной почте. {e}')
         return Response(status=500)
+
+@bp.get('/admin/vacancy/<vid>')
+def vacancy_detailed(vid):
+    vacancy = Vacancy.query.filter_by(id=vid).first()
+    user_vacancies = UserVacancy.query.filter(UserVacancy.vacancy_id == vid,
+                                              UserVacancy.is_main.is_(True)).all()
+    return render_template('admin/vacancion_detailed.html',
+                           title=vacancy.name,
+                           users=user_vacancies
+                           )
