@@ -29,6 +29,7 @@ class User(UserMixin, db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(Text, nullable=False, default='')
     email = Column(Text, nullable=False, unique=True)
+    is_admin = Column(Boolean, default=False)
     sex = Column(Text)
     pers_data_consent = Column(Boolean, default=False)
     birthday = Column(Text)
@@ -256,12 +257,19 @@ class User(UserMixin, db.Model):
                 db.session.commit()
 
     def add_user_data_question(self, data):
+        # user_data_with_empty_text = UserData.query.filter(UserData.user_id == self.id,
+        #                                                   UserData.text.is_(None)).all()
+        # for ud in user_data_with_empty_text:
+        #     db.session.delete(ud)
+
+        db.session.commit()
         user_data = UserData()
         user_data.user_id = self.id
         user_data.question = data.get('question_text', '')
         user_data.type = data.get('variable', '')
         db.session.add(user_data)
         db.session.commit()
+
         return user_data.id
 
     def get_main_vacancy(self):

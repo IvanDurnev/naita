@@ -48,6 +48,9 @@ def create_app(config_class=Config):
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
 
+    from app.admin import bp as admin_bp
+    app.register_blueprint(admin_bp)
+
     from app.chat import bp as chat_bp
     app.register_blueprint(chat_bp, prefix="/chat")
 

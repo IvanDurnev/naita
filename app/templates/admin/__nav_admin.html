@@ -1,0 +1,109 @@
+<nav id="header-nav" class="navbar bg-body-tertiary">
+    <div id="logo-wrapper" class="container-fluid">
+        <a class="navbar-brand" href="#">
+            <img src="{{ url_for('static', filename='images/logo_big.png') }}" alt="Logo" width="30" height="24" class="d-inline-block align-text-top">
+            Найта
+        </a>
+    </div>
+    <div id="nav-menu">
+        {% if not current_user.is_authenticated %}
+            <div id="user-info">
+                <a id="auth-btn" class="btn btn-lightgrey" data-bs-toggle="modal" data-bs-target="#loginStaticBackdrop">
+                    <i class="bi bi-person"></i>
+                    <span>Авторизация</span>
+                </a>
+            </div>
+        {% else %}
+            <div id="user-info">
+                <img id="user-avatar" src="{{ current_user.get_avatar() }}" width="50" height="50" style="border-radius: 50%" alt="User avatar"
+                     class="{% if current_user.profile_filled %} profile-filled {% endif %} {% if current_user.coincidences_done %} coincidences-done {% endif %}"
+                     ondblclick=testFun();
+                >
+                <p style="margin: 0">Привет, {{ current_user.name }}!</p>
+                <a class="btn btn-lightgrey" onclick="logout();"><i class="bi bi-box-arrow-in-right"></i></a>
+            </div>
+        {% endif %}
+    </div>
+</nav>
+
+<!-- Modal login -->
+<div class="modal fade" id="loginStaticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="loginStaticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="custom-modal-header">
+                <div class="text-start">
+                    <h1 class="modal-title fs-3 mt-3" id="loginStaticBackdropLabel">Войти</h1>
+                </div>
+                <div class="text-end">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="login-btns-wrapper">
+                    <div>
+                        <form id="verify-email-form" onsubmit="verifyEmail(event);" style="display: grid;">
+                            <div class="input-group mb-3">
+                                <input id="email-login" type="text" class="form-control" placeholder="Электронная почта" aria-label="Электронная почта" aria-describedby="basic-addon2" value="test">
+                                <span class="input-group-text" id="basic-addon2">@otpbank.ru</span>
+                            </div>
+                            <input class="btn btn-lightgreen w-100 mt-3" type="submit" value="{{ 'получить код для входа' | upper }}" style="justify-self: center;">
+                        </form>
+                    </div>
+                </div>
+                <div class="check-code-wrapper">
+                    <div>
+                        <form id="verify-email-code-form" onsubmit="verifyEmailCode(event);" style="display: grid;">
+                            <p>Введите код из письма</p>
+                            <input class="form-control" type="text" required>
+                            <input class="btn btn-lightgreen w-100 mt-3" type="submit" value="Войти" style="justify-self: center;">
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const verifyEmailForm = document.getElementById('verify-email-form')
+    const verifyEmailCodeForm = document.getElementById('verify-email-code-form')
+    const verifyEmailInput = document.getElementById('email-login')
+    const verifyEmailBtn = verifyEmailForm.querySelector('input[type="submit"]')
+    const loginBtnsWrapper = document.querySelector('.login-btns-wrapper')
+    const checkCodeWrapper = document.querySelector('.check-code-wrapper')
+    const verifyEmailCodeInput = verifyEmailCodeForm.querySelector('input[type="text"]')
+    $(checkCodeWrapper).hide();
+
+    async function verifyEmail(e) {
+        e.preventDefault();
+
+        let response = await fetch('admin/verify_email',
+            {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email: verifyEmailInput.value})
+            }
+        )
+
+        if (response.ok) {
+            $(loginBtnsWrapper).hide();
+            $(checkCodeWrapper).show();
+        }
+    }
+
+    async function verifyEmailCode(e) {
+        e.preventDefault();
+
+        let response = await fetch('admin/verify_email_code',
+            {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({code: verifyEmailCodeInput.value})
+            }
+        )
+
+        if (response.ok) {
+            location.reload();
+        }
+    }
+</script>

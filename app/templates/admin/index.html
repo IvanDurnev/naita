@@ -1,0 +1,22 @@
+{% extends 'admin/base.html' %}
+
+{% block content %}
+    {% include 'admin/__nav_admin.html' %}
+    <div id="main-container" class="container">
+        {% if current_user.is_authenticated %}
+            {% include 'admin/__vacancies.html' %}
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function logout() {
+        let response = await fetch('/logout')
+
+        if (response.ok) {
+            location.reload();
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,35 @@
+#main-container {
+    padding: 5% 3%!important;
+}
+
+#vacancies ul {
+    list-style-type:  none;
+    display: grid;
+    grid-gap: 10px;
+    padding: 0;
+}
+
+#vacancies ul li {
+    background-color: white;
+    padding: 20px 30px;
+    border-radius: 16px;
+    cursor: pointer;
+
+    display: grid;
+    grid-template-columns: 8fr 2fr 2fr;
+}
+
+#vacancies ul li:hover {
+    font-weight: bold;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+.users-avatars {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+}

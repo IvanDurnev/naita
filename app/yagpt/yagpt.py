@@ -506,6 +506,8 @@ class KnowledgeBase:
         self.user_id = user.id
         self.common_files_path = os.path.join(Config.STATIC_FOLDER, 'knowledge_base')
         self.private_files_path = os.path.join(Config.STATIC_FOLDER, 'users', str(user.id))
+        if not os.path.exists(self.private_files_path):
+            os.makedirs(self.private_files_path)
         self.files = []
         for path in os.listdir(self.common_files_path):
             self.files.append(

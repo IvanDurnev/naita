@@ -1,0 +1,23 @@
+<div id="vacancies">
+    <h3>Вакансии</h3>
+    <ul>
+        {% for v in vacancies %}
+            <li>
+                <p>{{ v.name }}</p>
+                <p>{{ v.users | length }}</p>
+                <div class="users-avatars">
+                    {% for u in v.users[:5] %}
+                        <img
+                                class="user-avatar"
+                                src="{{ url_for('static', filename='users/'+u.id|string+'/avatar.jpg') }}"
+                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='users/default/avatar_pixar.jpg') }}';">
+
+                    {% endfor %}
+                    {% if v.users | length > 5 %}
+                        <span>...</span>
+                    {% endif %}
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+</div>
