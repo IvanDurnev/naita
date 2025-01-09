@@ -2,8 +2,11 @@
 <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
 
 <script>
-    const socket=io('/chat')
+    const uid = '{{ current_user.id }}'
+
     const secureSocket=io('/secure_chat', {transports: ['websocket']})
+    secureSocket.emit('join', { room: `room_${uid}` });
+
     const chatContainer = document.getElementById('chat-container');
     const messagesContainer = document.getElementById('messages');
     const inputMessage = document.getElementById('input-message');
@@ -100,6 +103,11 @@
             btn.remove()
         })
     });
+
+    secureSocket.on('room', (data)=>{
+        console.log(data)
+        {#alert(data.text)#}
+    })
 
     async function loadMessages(clear=true) {
         if (clear)

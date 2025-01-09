@@ -2,7 +2,7 @@ import os
 from app.models import Message, Resume, outgoing_message, incoming_message, UserData, Vacancy, UserVacancy
 from flask import request, jsonify, session, Response
 from flask_login import current_user
-from flask_socketio import emit
+from flask_socketio import emit, join_room, leave_room
 from sqlalchemy.testing.plugin.plugin_base import logging
 from app import socketio, Config, db
 from app.chat import bp as chat_bp
@@ -34,6 +34,12 @@ def handle_connect_secure():
         return emit('response', {'text': texts.HELLO_LOGIN, 'type': 'text'})
     # return emit('response', {'text': texts.HELLO_LOGOUT, 'type': 'text'})
 
+@socketio.on('join', namespace='/secure_chat')
+def handle_join(data):
+    room = data.get('room')
+    join_room(room)
+    emit('room', {'text': f'{room}', 'type': 'text'}, room=room)
+
 @socketio.on('disconnect', namespace='/secure_chat')
 def handle_disconnect_secure():
     logging.info('Пользователь отключился')
@@ -42,8 +48,11 @@ def handle_disconnect_secure():
 @outgoing_message
 def handle_message_secure(data):
     if current_user.is_authenticated:
-        if data.get('disableAnswer'):
+        print(data)
+
+        if data.get('disableAnswer') == 'true':
             return
+
         ya_gpt_client = YAGPT()
         emitNaitaAction('читает...')
 
@@ -325,7 +334,7 @@ def emit_response(data, message=None):
     emit('response', data)
 
 def emitNaitaAction(text):
-    emit('naitaAction', {'text': text})
+    emit('naitaAction', {'text': text}, room=f'room_{current_user.id}')
 
 def is_email_address(text):
     return bool(re.match(r'^(?:(?!.*\.\.)([a-zA-Z0-9!#$%&\'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&\'*+/=?^_`{|}~-]+)*)|(\"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\\\[\x01-\x09\x0b\x0c\x0e-\x7f])\"))@(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}|(?:\[(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\]))$', text))
