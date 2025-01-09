@@ -30,19 +30,46 @@
                             <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
                         </div>
                     </div>
-                    <div class="user-details-body">
+                    <div class="user-details-body mt-3">
                         <div class="user-details-body-nav">
-                            <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
-                                <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
-                                <label class="btn btn-outline-primary" for="btnradio1">Radio 1</label>
+                            <div class="btn-group user-details-body-nav-btn-group" role="group">
+                                <input type="radio" class="btn-check" name="btnradio" id="btnradio-{{ user.id }}-1" autocomplete="off" checked>
+                                <label class="btn" for="btnradio-{{ user.id }}-1">Профиль</label>
 
-                                <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
-                                <label class="btn btn-outline-primary" for="btnradio2">Radio 2</label>
+                                <input type="radio" class="btn-check" name="btnradio" id="btnradio-{{ user.id }}-2" autocomplete="off">
+                                <label class="btn" for="btnradio-{{ user.id }}-2">Диалог</label>
 
-                                <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
-                                <label class="btn btn-outline-primary" for="btnradio3">Radio 3</label>
+                                <input type="radio" class="btn-check" name="btnradio" id="btnradio-{{ user.id }}-3" autocomplete="off">
+                                <label class="btn" for="btnradio-{{ user.id }}-3">Файлы кандидата</label>
+
+                                <input type="radio" class="btn-check" name="btnradio" id="btnradio-{{ user.id }}-4" autocomplete="off">
+                                <label class="btn" for="btnradio-{{ user.id }}-4">Результаты</label>
                             </div>
                         </div>
+                        <table class="table table-borderless mt-3">
+                            <colgroup>
+                                <col style="width: 30%;">
+                                <col style="width: 70%;">
+                            </colgroup>
+                            <tbody>
+                            <tr>
+                                <td>ФИО</td>
+                                <td>{{ user.name }}</td>
+                            </tr>
+                            <tr>
+                                <td>Исходная вакансия</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>Email</td>
+                                <td>{{ user.email }}</td>
+                            </tr>
+                            <tr>
+                                <td>Статус</td>
+                                <td></td>
+                            </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             {% endfor %}

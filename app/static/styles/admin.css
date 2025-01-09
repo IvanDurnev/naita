@@ -105,3 +105,18 @@
     justify-self: end; /* Выравнивание по правому краю */
     text-align: right; /* Дополнительно для текста */
 }
+
+.user-details-body-nav-btn-group {
+    width: 100%;
+    background-color: #F0F1F4;
+    border-radius: 24px!important;
+    padding: 5px;
+}
+.user-details-body-nav-btn-group .btn {
+    border-radius: 24px;
+}
+
+.user-details-body-nav-btn-group .btn-check:checked + label {
+    background-color: white;
+    border-color: white;
+}
