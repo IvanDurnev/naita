@@ -48,7 +48,6 @@ def handle_disconnect_secure():
 @outgoing_message
 def handle_message_secure(data):
     if current_user.is_authenticated:
-        print(data)
 
         if data.get('disableAnswer') == 'true':
             return
