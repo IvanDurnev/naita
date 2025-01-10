@@ -104,7 +104,8 @@ def cv():
 
 @bp.get('/recommendations')
 def recommendations():
-    from weasyprint import HTML
+    # from weasyprint import HTML
+    import pdfkit
     from app.chat import texts
     mv = current_user.get_main_vacancy()
     user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
@@ -131,7 +132,10 @@ def recommendations():
     if not os.path.exists(recommendations_saving_path):
         os.makedirs(recommendations_saving_path)
 
-    HTML(string=render_template('main/recommendations.html', info=info)).write_pdf(recommendations_file_path)
+    # HTML(string=render_template('main/recommendations.html', info=info)).write_pdf(recommendations_file_path)
+    # Генерация PDF с использованием pdfkit
+    html_content = render_template('main/recommendations.html', info=info)
+    pdfkit.from_string(html_content, recommendations_file_path)
 
     # отправить рекомендации пользователю на почту
     try:
