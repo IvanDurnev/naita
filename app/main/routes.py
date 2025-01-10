@@ -36,7 +36,7 @@ def test():
 
 @bp.get('/cv')
 def cv():
-    from weasyprint import HTML
+    # from weasyprint import HTML
     import pdfkit
     from app.chat import texts
     response = texts.get_cv_fields(current_user)
