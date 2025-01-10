@@ -1,11 +1,15 @@
 from app import db
-from flask import render_template, request, session, Response
+from flask import render_template, request, session, Response, jsonify
 from flask_login import current_user, login_user, login_required
 from app.admin import bp
-from app.models import User, Vacancy, UserVacancy
+from app.models import User, Vacancy, UserVacancy, Message
 import logging
 import datetime
 import pandas as pd
+import os
+
+from config import Config
+
 
 @bp.route('/admin')
 def admin():
@@ -91,3 +95,76 @@ def vacancy_detailed(vid):
                            title=vacancy.name,
                            users=user_vacancies
                            )
+
+@bp.post('/admin/vacancy/profile')
+def get_user_profile():
+    user = User.query.get(int(request.get_json().get('uid')))
+    primary_vacancy = UserVacancy.query.filter(UserVacancy.user_id == user.id,
+                                               UserVacancy.former_main.is_(True)).first()
+    if primary_vacancy:
+        primary_vacancy = primary_vacancy.get_vacancy().name
+    else:
+        primary_vacancy = '-'
+
+    return {'name': user.name,
+            'email': user.email,
+            'primary_vacancy': primary_vacancy,
+            'status': user.get_status()}
+
+@bp.post('/admin/vacancy/messages')
+def get_user_dialog():
+    uid = int(request.get_json().get('uid'))
+    messages = (Message.query.filter(
+        (Message.receiver_id == uid) | (Message.sender_id == uid))
+                .order_by(Message.sent).all())
+    messages_json = [
+        {
+            'id': message.id,
+            'sender_id': message.sender_id,
+            'receiver_id': message.receiver_id,
+            'type': message.message_type,
+            'text': message.text,
+            'content': message.content,
+            'callback': message.callback,
+            'disable_answer': message.disable_answer,
+            'btns': message.btns,
+            'sent': message.sent.isoformat() if message.sent else None
+        }
+        for message in messages
+    ]
+
+    return jsonify(messages_json), 200
+
+@bp.post('/admin/vacancy/result')
+def get_user_result():
+    user = User.query.get(int(request.get_json().get('uid')))
+    primary_vacancy = UserVacancy.query.filter(UserVacancy.user_id == user.id,
+                                               UserVacancy.is_main.is_(True)).first()
+
+    return {'positive': primary_vacancy.positive,
+            'negative': primary_vacancy.negative,
+            'recommendations': primary_vacancy.recommendations,
+            'value': primary_vacancy.value}
+
+@bp.post('/admin/vacancy/files')
+def get_user_files():
+    # Получение списка файлов
+    all_files = get_all_files_in_user_directory(os.path.join(Config.STATIC_FOLDER, 'users', str(request.get_json().get('uid'))))
+    download_links = []
+    for file in all_files:
+        download_links.append({
+            'filename': file,
+            'path': os.path.join(Config.STATIC_FOLDER, 'users', str(request.get_json().get('uid')), file),
+            'comment': ''
+        })
+    return download_links
+
+
+def get_all_files_in_user_directory(user_directory):
+    file_list = []
+    for root, dirs, files in os.walk(user_directory):
+        for file in files:
+            # Создаем относительный путь начиная от корневой папки пользователя
+            relative_path = os.path.relpath(os.path.join(root, file), user_directory)
+            file_list.append(relative_path)
+    return file_list

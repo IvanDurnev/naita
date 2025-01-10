@@ -5,6 +5,7 @@
         <div id="chat-user-list">
             {% for u in users %}
                 {% set user = u.get_user() %}
+                {% set status = user.get_status() %}
                 <div id="user-chat-{{ user.id }}" data-uid="{{ user.id }}" class="vacancy-chat-user-item">
                     <div class="vacancy-chat-user-item-avatar-wrapper">
                         <img
@@ -14,7 +15,7 @@
                     </div>
                     <div class="vacancy-chat-user-item-status">
                         <p class="m-0">{{ user.name or user.email }}</p>
-                        <p class="m-0">Статус</p>
+                        <p class="m-0" style="color: {{ status.color }};">{{ status.name }}</p>
                     </div>
                 </div>
             {% endfor %}
@@ -31,56 +32,183 @@
                         </div>
                     </div>
                     <div class="user-details-body mt-3">
-                        <div class="user-details-body-nav">
+                        <div class="nav nav-pills user-details-body-nav" role="tablist">
                             <div class="btn-group user-details-body-nav-btn-group" role="group">
-                                <input type="radio" class="btn-check" name="btnradio" id="btnradio-{{ user.id }}-1" autocomplete="off" checked>
-                                <label class="btn" for="btnradio-{{ user.id }}-1">Профиль</label>
+                                <input type="radio" class="btn-check" name="btnradio" id="btnradio-{{ user.id }}-1" autocomplete="off">
+                                <label class="btn" for="btnradio-{{ user.id }}-1" data-bs-toggle="tab" data-bs-target="#pills-profile-{{ user.id }}" role="tab" data-callback="profile" data-uid="{{ user.id }}">Профиль</label>
 
                                 <input type="radio" class="btn-check" name="btnradio" id="btnradio-{{ user.id }}-2" autocomplete="off">
-                                <label class="btn" for="btnradio-{{ user.id }}-2">Диалог</label>
+                                <label class="btn" for="btnradio-{{ user.id }}-2" data-bs-toggle="tab" data-bs-target="#pills-dialog-{{ user.id }}" role="tab" data-callback="dialog" data-uid="{{ user.id }}">Диалог</label>
 
                                 <input type="radio" class="btn-check" name="btnradio" id="btnradio-{{ user.id }}-3" autocomplete="off">
-                                <label class="btn" for="btnradio-{{ user.id }}-3">Файлы кандидата</label>
+                                <label class="btn" for="btnradio-{{ user.id }}-3" data-bs-toggle="tab" data-bs-target="#pills-files-{{ user.id }}" role="tab" data-callback="files" data-uid="{{ user.id }}">Файлы кандидата</label>
 
                                 <input type="radio" class="btn-check" name="btnradio" id="btnradio-{{ user.id }}-4" autocomplete="off">
-                                <label class="btn" for="btnradio-{{ user.id }}-4">Результаты</label>
+                                <label class="btn" for="btnradio-{{ user.id }}-4" data-bs-toggle="tab" data-bs-target="#pills-result-{{ user.id }}" role="tab" data-callback="result" data-uid="{{ user.id }}">Результаты</label>
                             </div>
                         </div>
-                        <table class="table table-borderless mt-3">
-                            <colgroup>
-                                <col style="width: 30%;">
-                                <col style="width: 70%;">
-                            </colgroup>
-                            <tbody>
-                            <tr>
-                                <td>ФИО</td>
-                                <td>{{ user.name }}</td>
-                            </tr>
-                            <tr>
-                                <td>Исходная вакансия</td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td>Email</td>
-                                <td>{{ user.email }}</td>
-                            </tr>
-                            <tr>
-                                <td>Статус</td>
-                                <td></td>
-                            </tr>
-                            </tbody>
-                        </table>
+                        <div class="tab-content" id="pills-tabContent">
+                            <div class="tab-pane fade" id="pills-profile-{{ user.id }}" role="tabpanel" aria-labelledby="pills-profile-{{ user.id }}-tab" tabindex="0">
+                                <div id="user-{{ user.id }}-profile" class="mt-3">
+                                    <h6>Профиль пользователя</h6>
+                                    <table class="table table-borderless">
+                                        <colgroup>
+                                            <col style="width: 30%;">
+                                            <col style="width: 70%;">
+                                        </colgroup>
+                                        <tbody>
+                                        <tr>
+                                            <td>ФИО</td>
+                                            <td>{{ user.name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Исходная вакансия</td>
+                                            <td id="user-{{ user.id }}-primary-vacancy"></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Email</td>
+                                            <td>{{ user.email }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Статус</td>
+                                            <td id="user-{{ user.id }}-status"></td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                    <div class="text-center">
+                                        <a class="btn btn-green">ВЗЯТЬ В РАБОТУ</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="pills-dialog-{{ user.id }}" role="tabpanel" aria-labelledby="pills-dialog-{{ user.id }}-tab" tabindex="0">
+                                <div id="user-{{ user.id }}-dialog" class="mt-3">
+                                    <h6>Диалог пользователя с ассистентом</h6>
+                                    <div id="chat-user-{{ user.id }}" class="chat">
+                                        {% include 'admin/__chat.html' %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="pills-files-{{ user.id }}" role="tabpanel" aria-labelledby="pills-files-{{ user.id }}-tab" tabindex="0">
+                                <div id="user-{{ user.id }}-files" class="mt-3">
+                                    <h6>Файлы пользователя</h6>
+                                    <div class="files-list"></div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="pills-result-{{ user.id }}" role="tabpanel" aria-labelledby="pills-result-{{ user.id }}-tab" tabindex="0">
+                                <div id="user-{{ user.id }}-results" class="mt-3">
+                                    <h6>Результаты пользователя</h6>
+                                    <p>Сильные стороны:</p>
+                                    <p id="user-{{ user.id }}-result-positive">-</p>
+                                    <p>Точки роста:</p>
+                                    <p id="user-{{ user.id }}-result-negative">-</p>
+                                    <p>Рекомендации Найты:</p>
+                                    <p id="user-{{ user.id }}-result-recommendations">-</p>
+                                    <p>Оценка соответствия кандидата вакансии: <span id="user-{{ user.id }}-result-value" class="badge bg-dark"></span></p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             {% endfor %}
         </div>
     </div>
 </div>
-
+<script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
 <script>
+    const md = markdownit({
+        html: true,
+        linkify: true,
+        typographer: true,
+    })
     let usersNodes = document.querySelectorAll('.vacancy-chat-user-item')
     usersNodes.forEach(el => el.addEventListener('click', setUserActive))
     let usersDetailsNodes = document.querySelectorAll('.user-details-wrapper')
+
+    const tabEls = document.querySelectorAll('label[data-bs-toggle="tab"]');
+    tabEls.forEach(el => el.addEventListener('shown.bs.tab', event => {
+            let callback = capitalize(event.target.dataset.callback);
+            window[`load${callback}`](event.target.dataset.uid);
+        }));
+
+    async function loadProfile(uid) {
+        let response = await fetch('profile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'uid': uid
+            })
+        })
+
+        if (response.ok) {
+            let result = await response.json()
+            document.querySelector(`#user-${uid}-primary-vacancy`).innerText = result.primary_vacancy
+            document.querySelector(`#user-${uid}-status`).innerText = result.status.name
+        }
+    }
+    async function loadDialog(uid) {
+        let messagesContainer = document.getElementById(`user-${uid}-messages`)
+        $(messagesContainer).empty();
+        const response = await fetch('messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'uid': uid
+            })
+        });
+        const messages = await response.json();
+        messages.forEach(message => {
+            if (message.type === 'text') {
+                appendAdminChatMessage(message, messagesContainer, uid);
+            } else if (message.type === 'file') {
+                {#appendMessageWithFile({ name: message.fileName, type: message.contentType || 'application/octet-stream', data: message.content }, message.comment, 'incoming');#}
+            }
+        });
+    }
+    async function loadFiles(uid) {
+        let response = await fetch('files', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'uid': uid
+            })
+        })
+        filesContainer = document.querySelector(`#user-${uid}-files .files-list`)
+        $(filesContainer).empty();
+
+        if (response.ok) {
+            let result = await response.json()
+            result.forEach(el => {
+                $(filesContainer).append(`
+                <p><a href="/static/users/${uid}/${el.filename}" download="">${el.filename}</a></p>
+                `)
+            })
+        }
+    }
+    async function loadResult(uid) {
+        let response = await fetch('result', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'uid': uid
+            })
+        })
+
+        if (response.ok) {
+            let result = await response.json()
+            document.querySelector(`#user-${uid}-result-positive`).innerText = result.positive
+            document.querySelector(`#user-${uid}-result-negative`).innerText = result.negative
+            document.querySelector(`#user-${uid}-result-recommendations`).innerText = result.recommendations
+            document.querySelector(`#user-${uid}-result-value`).innerText = result.value
+        }
+    }
 
     function setUserActive(ev) {
         usersNodes.forEach(el => el.classList.remove('active'))
@@ -89,5 +217,64 @@
 
         usersDetailsNodes.forEach(el => el.setAttribute('hidden', true))
         document.querySelector(`#user-details-${uid}`).removeAttribute('hidden')
+    }
+    function capitalize(str) {
+        if (!str) return '';
+        return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    }
+
+    function appendAdminChatMessage(message, messagesContainer, uid) {
+        let messageText = message.text
+        let messageType = message.sender_id ? 'outgoing' : 'incoming'
+        let messageButtons = message.btns
+        let messageCallback = message.callback
+        let disableAnswer = message.disable_answer
+        let messageId = message.id ? message.id : 0
+        let format = message.format ? message.format : 'markdown'
+
+        {#if (disableAnswer)#}
+        {#    chatInput.classList.add('disabled')#}
+        {#else#}
+        {#    chatInput.classList.remove('disabled')#}
+
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', messageType);
+        if (messageId)
+            messageElement.setAttribute('data-mid', message.id);
+        const textElement = document.createElement('pre');
+
+        textElement.innerHTML = format==='markdown' ? md.render(messageText) : messageText;
+
+        messageElement.appendChild(textElement);
+        messagesContainer.appendChild(messageElement);
+
+        {#console.log(messageElement);#}
+
+        if (messageButtons) {
+            messageButtons.forEach(btnText => {
+                const btnElement = document.createElement('div');
+                btnElement.setAttribute('data-mid', message.id);
+                if (messageCallback) {
+                    btnElement.setAttribute('data-callback', messageCallback)
+                }
+                if (disableAnswer) {
+                    btnElement.setAttribute('data-disableAnswer', disableAnswer)
+                }
+
+                const btnTextPreElement = document.createElement('pre');
+                const btnTextElement = document.createElement('p');
+                btnElement.classList.add('message', 'incoming', 'message-btn');
+                btnTextElement.textContent = btnText;
+                btnElement.addEventListener('click', btnMessage);
+                btnTextPreElement.appendChild(btnTextElement);
+                btnElement.appendChild(btnTextPreElement);
+                messagesContainer.appendChild(btnElement);
+            });
+        }
+
+        window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: 'smooth'
+        });
     }
 </script>

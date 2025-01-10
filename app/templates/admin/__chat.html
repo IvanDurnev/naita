@@ -1,0 +1,14 @@
+<div id="chat-{{ user.id }}-container" class="chat-container">
+    <div id="user-{{ user.id }}-messages" class="messages"></div>
+    <div id="chat-input-admin-user-{{ user.id }}" class="chat-input-admin" disabled>
+        <div id="file-input-container-user-{{ user.id }}" class="pt-2">
+            <input type="file" id="file-input-user-{{ user.id }}" style="display: none;">
+            <button id="file-btn-user-{{ user.id }}" class="file-btn"><i class="fas fa-paperclip"></i></button>
+        </div>
+        <textarea type="text" id="input-message-user-{{ user.id }}" placeholder="Введите сообщение..." rows="5"></textarea>
+        <div id="send-btn-container-user-{{ user.id }}" class="pt-2">
+            <button id="send-btn-user-{{ user.id }}" class="send-btn"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+    <div id="file-preview-user-{{ user.id }}"></div>
+</div>

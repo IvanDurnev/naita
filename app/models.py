@@ -310,6 +310,21 @@ class User(UserMixin, db.Model):
     def create_personal_ya_assistant(self):
         kb = KnowledgeBase(self)
 
+    def get_status(self):
+        status = {'name': 'начальный', 'color': 'grey'}
+        if self.profile_filled:
+            status = {'name': 'в работе у Найты', 'color': 'grey'}
+        if self.coincidences_done:
+            status = {'name': 'прескрининг пройден', 'color': 'grey'}
+            user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == self.id,
+                                                    UserVacancy.is_main.is_(True)).first()
+            if user_vacancy:
+                if user_vacancy.value >= Config.MIN_COINCEDENCE_VALUE:
+                    status = {'name': 'прескрининг пройден', 'color': 'green'}
+                else:
+                    status = {'name': 'прескрининг пройден', 'color': 'red'}
+        return status
+
 class Message(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     sender_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'))

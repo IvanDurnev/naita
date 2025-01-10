@@ -60,6 +60,8 @@
 }
 
 #chat-user-info {
+    position: relative;
+    max-height: 100%;
     padding: 30px 30px 0 30px;
 }
 
@@ -106,14 +108,22 @@
     text-align: right; /* Дополнительно для текста */
 }
 
+.user-details-body-nav {
+}
+
 .user-details-body-nav-btn-group {
     width: 100%;
     background-color: #F0F1F4;
     border-radius: 24px!important;
     padding: 5px;
 }
-.user-details-body-nav-btn-group .btn {
+#vacancy-detailed-wrapper .btn {
     border-radius: 24px;
+    height: 40px!important;
+}
+.btn-green {
+    background-color: #C1FF05!important;
+    padding: 10px 15px;
 }
 
 .user-details-body-nav-btn-group .btn-check:checked + label {

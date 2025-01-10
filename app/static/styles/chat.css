@@ -1,8 +1,10 @@
 #chat {}
 
-#chat-container {
-    position: relative!important;
-}
+.chat {}
+
+#chat-container {}
+
+.chat-container {}
 
 #chat-input {
     display: grid;
@@ -16,6 +18,20 @@
     transform: translateX(-50%);
     width: 1280px;
     max-width: 1280px;
+    padding: 5px 20px;
+}
+.chat-input-admin {
+    display: grid;
+    grid-template-columns: max-content auto max-content;
+    background-color: #f4f4f4;
+    border-radius: 16px;
+
+    position: absolute;
+    bottom: 1%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 98%;
+    /*max-width: 1280px;*/
     padding: 5px 20px;
 }
 
@@ -43,7 +59,9 @@
     background: linear-gradient(90deg, #9E6FC3 0%, #B693D2 100%);
 }
 
-#chat-input[disabled], #chat-input.disabled, #chat-input[disabled] *, #chat-input.disabled * {
+#chat-input[disabled], #chat-input.disabled, #chat-input[disabled] *, #chat-input.disabled *,
+.chat-input-admin[disabled], .chat-input-admin.disabled, .chat-input-admin[disabled] *, .chat-input-admin.disabled *
+{
     background-color: #c4c4c4!important;
     border-color: #c4c4c4!important;
     pointer-events: none;
@@ -60,13 +78,19 @@
     resize: none;
 }
 
-#messages {
+#messages, .messages {
     padding: 15px;
     overflow-y: auto;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+.messages {
+    height: 51vh;
+    max-height: 51vh;
+    padding-bottom: 200px;
 }
 
 .message {
@@ -132,7 +156,9 @@
     outline: none;
 }
 
-#send-btn, #file-btn, #fullscreen-btn {
+#send-btn, #file-btn, #fullscreen-btn,
+.send-btn, .file-btn
+{
     border: none;
     background: none;
     cursor: pointer;
