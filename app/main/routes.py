@@ -37,6 +37,7 @@ def test():
 @bp.get('/cv')
 def cv():
     from weasyprint import HTML
+    import pdfkit
     from app.chat import texts
     response = texts.get_cv_fields(current_user)
     info = json.loads(response)
@@ -52,7 +53,12 @@ def cv():
     if not os.path.exists(cv_saving_path):
         os.makedirs(cv_saving_path)
 
-    HTML(string=render_template('main/cv.html', info=info)).write_pdf(cv_file_path)
+    # генерация с weasyprint
+    # HTML(string=render_template('main/cv.html', info=info)).write_pdf(cv_file_path)
+
+    # Генерация PDF с использованием pdfkit
+    html_content = render_template('main/cv.html', info=info)
+    pdfkit.from_string(html_content, cv_file_path)
 
     # добавить файл с резюме в файлы ассистента
     ya_gpt_client = YAGPT()
