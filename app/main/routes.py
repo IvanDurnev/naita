@@ -6,7 +6,7 @@ from flask_socketio import emit
 from app import db, sess, redis_client, mail
 from app.chat.routes import emit_response
 from app.main import bp
-from flask import render_template, redirect, request, Response, jsonify, session
+from flask import render_template, redirect, request, Response, jsonify, session, url_for
 from app.models import User, load_user, Message, UserVacancy
 from flask_login import login_user, logout_user, current_user
 from app.yagpt.yagpt import YAGPT
@@ -240,6 +240,9 @@ def index_vk_login():
 
 @bp.get('/logout')
 def logout():
+    if 'admin' in request.referrer:
+        logout_user()
+        return redirect(url_for('admin.admin'))
     logout_user()
     return Response(status=200)
 
