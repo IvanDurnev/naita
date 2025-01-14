@@ -105,7 +105,7 @@
     });
 
     secureSocket.on('room', (data)=>{
-        console.log(data)
+        {#console.log(data)#}
         {#alert(data.text)#}
     })
 
@@ -303,12 +303,17 @@
         let disableAnswer = false
         if (e.currentTarget.dataset.disableanswer)
             disableAnswer = true
+        let text = e.currentTarget.querySelector('p').textContent
+        let callback = e.currentTarget.dataset.callback
+        if (callback === 'vacancy')
+            text = `Меня интересует вакансия ${e.currentTarget.querySelector('p').textContent}`
         secureSocket.emit('messageBtnClick', {
             mid: e.currentTarget.dataset.mid,
-            callback: e.currentTarget.dataset.callback,
+            callback: callback,
             disableAnswer: disableAnswer,
-            text: e.currentTarget.querySelector('p').textContent});
-        inputMessage.value = e.currentTarget.querySelector('p').textContent;
+            text: text
+        });
+        inputMessage.value = text;
         sendMessage(disableAnswer);
     }
 

@@ -72,9 +72,9 @@
                         <p class="mb-5">{{ info['profession'] }}</p>
                     </div>
                     <div style="text-align: end;">
-                        {% if info['photo'] %}
-                            <img id="ava" src="{{ info['photo'] }}">
-                        {% endif %}
+{#                        {% if info['photo'] %}#}
+{#                            <img id="ava" src="{{ info['photo'] }}">#}
+{#                        {% endif %}#}
                     </div>
                 </div>
                 <p class="mb-5">{{ info['description'] }}</p>
@@ -125,7 +125,7 @@
                             <li class="mb-3">
                                 <h6>{{ e['name'] }}</h6>
                                 <p>{{ e['profession'] or '' }}</p>
-                                <p>{{ e['years'] }}</p>
+                                <p>{{ e['years'] or '' }}</p>
                             </li>
                         {% endfor %}
                     </ul>

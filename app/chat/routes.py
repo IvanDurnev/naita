@@ -16,7 +16,7 @@ from app.yagpt.yagpt import YAGPT
 import threading
 import json
 import re
-
+from app.yagpt import prompts
 
 openai = OpenAI(api_key=Config.OPENAI_API_KEY)
 openai_proxy_client = OpenAIProxy()
@@ -31,7 +31,7 @@ def handle_connect_secure():
                 emit('response', {'text': texts.welcome(current_user), 'type': 'text'})
         else:
             emit('fillInfo')
-        return emit('response', {'text': texts.HELLO_LOGIN, 'type': 'text'})
+        # return emit('response', {'text': texts.HELLO_LOGIN, 'type': 'text'})
     # return emit('response', {'text': texts.HELLO_LOGOUT, 'type': 'text'})
 
 @socketio.on('join', namespace='/secure_chat')
@@ -44,7 +44,7 @@ def handle_join(data):
 def handle_disconnect_secure():
     logging.info('Пользователь отключился')
 
-@socketio.on('message', namespace='/secure_chat')
+@socketio.on('mes', namespace='/secure_chat')
 @outgoing_message
 def handle_message_secure(data):
     if current_user.is_authenticated:
@@ -160,6 +160,84 @@ def handle_message_secure(data):
         emit('response', {'text': texts.REGISTER_PLEASE, 'type': 'text'})
         emit('showRegisterDlg')
 
+@socketio.on('message', namespace='/secure_chat')
+@outgoing_message
+def handle_mes_test(data):
+    if current_user.is_authenticated:
+        if data.get('disableAnswer') in ['true', 'True', True]:
+            return
+
+        ya_gpt_client = YAGPT()
+        emitNaitaAction('читает...')
+
+        # нет первоначальной информации - даем модальное окно для ввода имени, фамилии и ссылки на резюме
+        if not (current_user.first_name and current_user.last_name):
+            return emit('fillInfo')
+
+        # если у пользователя нет текущей вакансии
+        if not current_user.get_main_vacancy():
+            return emit_vacancies_menu()
+
+        # если пришла ссылка
+        if hh_links := extract_and_validate_hh_resume_link(data["content"]):
+            emit('naitaAction', {'text': 'анализирует профиль на ХХ...'})
+            if save_hh_resume(hh_links[0]):
+                return emit('response', {'text': texts.RESUME_SAVED, 'type': 'text'})
+            return emit('response', {'text': texts.RESUME_NOT_SAVED, 'type': 'text'})
+
+        # если в сессии есть текущий id информации о пользователе - записываем туда ответ пользователя
+        if ud_id:=session.get('current_user_data_id', None):
+            ud = UserData.query.get(int(ud_id))
+            ud.text = data["content"]
+            db.session.commit()
+
+        response = ya_gpt_client.ask_assistant(data['content'], current_user)
+        if response:
+            emitNaitaAction('печатает...')
+            try:
+                current_user.update_user_profile(json.loads(current_user.get_AI_profile().replace("```", "").strip()))
+                db.session.commit()
+            except Exception as e:
+                pass
+            emit_response({'text': response, 'type': 'text'})
+
+            # print(current_user.check_completeness())
+
+            # if current_user.is_profile_complete():
+            if current_user.check_completeness() >= 90:
+                if not current_user.profile_filled:
+                    current_user.profile_filled = True
+                    emit('profile-filled')
+                    db.session.commit()
+                try:
+                    session.pop('current_user_data_id', None)
+                except Exception as e:
+                    pass
+
+                if not current_user.resume_received:
+                    from app.main.routes import cv
+                    emitNaitaAction('готовлю твое резюме...')
+                    # response = texts.assemble_cv(current_user)
+                    emit_response({
+                        'text': texts.WAIT_FOR_CV,
+                        'type': 'text',
+                        'disable_answer': True
+                    })
+                    response = cv()
+                    emit_response({'text': response, 'type': 'text', 'format': 'html'})
+                    current_user.resume_received = True
+                    db.session.commit()
+                    emit_response({'text': 'Также направила тебе это резюме на почту', 'type': 'text'})
+
+                if not current_user.coincidences_done:
+                    emit('coincidences-done')
+                    return get_main_vacancy_coincidence()
+
+    else:
+        emitNaitaAction('печатает...')
+        emit('response', {'text': texts.REGISTER_PLEASE, 'type': 'text'})
+        emit('showRegisterDlg')
+
 @socketio.on('fillInfo', namespace='/secure_chat')
 def secure_chat_fill_info(data):
     current_user.first_name = data.get('first_name', '')
@@ -248,11 +326,12 @@ def handle_message_btn_click(data):
     if callback:=data.get('callback'):
         if callback == 'vacancy':
             # ответить пользователю обязательный текст
-            emit('response', {'text': texts.VACANCY_SELECTED, 'type': 'text', 'disable_input': True})
-            emit('response', {'text': 'Какое у тебя образование?', 'type': 'text', 'disable_input': False})
-            ud = current_user.add_user_data_question({'question_text': 'Какое у тебя образование?'})
-            session['current_user_data_id'] = str(ud)
-            vacancy = Vacancy.query.filter(Vacancy.name == data.get('text')).first()
+            # emit('response', {'text': texts.VACANCY_SELECTED, 'type': 'text', 'disable_input': True})
+            # emit('response', {'text': 'Какое у тебя образование?', 'type': 'text', 'disable_input': False})
+            # ud = current_user.add_user_data_question({'question_text': 'Какое у тебя образование?'})
+            # session['current_user_data_id'] = str(ud)
+            vacancy_name = data.get('text').replace('Меня интересует вакансия', '').strip()
+            vacancy = Vacancy.query.filter(Vacancy.name == vacancy_name).first()
             user_vacancy = UserVacancy.query.filter(UserVacancy.user_id == current_user.id,
                                                     UserVacancy.vacancy_id == vacancy.id).first()
             if not user_vacancy:
@@ -397,13 +476,16 @@ def get_main_vacancy_coincidence():
     ya_gpt_client = YAGPT()
     emitNaitaAction('анализирует соответствие запрошенной вакансии...')
     vacancy = current_user.get_main_vacancy()
-    user_info = current_user.get_user_data()
+    # user_info = current_user.get_user_data()
 
     prompt = f'''Посмотри информацию о вакансии, на которую я претендую:
 {vacancy.get_json()}
 
-Посмотри информацию обо мне:
-{user_info}
+Посмотри мою переписку с ассистентом:
+{current_user.get_user_messages_history()}
+
+Посмотри мой профиль:
+{current_user.profile}
 
 Оцени уровень соответствия меня этой вакансии по шкале от 1 до 10?
 
@@ -498,8 +580,11 @@ def get_vacancies_coincidences():
     prompt = f'''Посмотри информацию об открытых вакансиях:
 {vacancies_list}
     
-Посмотри информацию обо мне:
-{user_info}
+Посмотри мою переписку с ассистентом:
+{current_user.get_user_messages_history()}
+
+Посмотри мой профиль:
+{current_user.profile}
 
 На какие из вакансий я подхожу и с каким уровнем соответствия по шкале от 1 до 10?
 
@@ -590,5 +675,5 @@ def emit_vacancies_menu():
                           'type': 'text',
                           'btns': vacancies,
                           'callback': 'vacancy',
-                          'disable_answer': True})
+                          'disable_answer': False})
 

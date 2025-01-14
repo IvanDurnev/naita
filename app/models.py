@@ -247,6 +247,20 @@ class User(UserMixin, db.Model):
             text += f'{json.dumps(resume.data, ensure_ascii=False)}\n'
         return text
 
+    def get_user_data_for_pesonal_assistant(self):
+        return f'''Кандидата зовут {self.name}, вот информация о нем: {self.get_user_data()}'''
+
+    def get_user_messages_history(self):
+        messages = self.get_ya_thread_messages()
+        history = []
+        try:
+            for message in messages:
+                history.append(
+                    f"role: {message['result']['author']['role']}, message: {message['result']['content']['content'][0]['text']['content']}")
+            return history
+        except:
+            return []
+
     def add_user_data(self, data):
         for key in data.keys():
             if data.get(key, None):
@@ -307,6 +321,32 @@ class User(UserMixin, db.Model):
 
         return is_value_filled(self.profile)
 
+    def check_completeness(self):
+        data = self.profile
+        completeness = 0
+
+        if data.get('education')['main_education'] in ['', {}]:
+            return 0
+        else:
+            completeness += 25
+        if data.get('hard_skills') in ['', []]:
+            return 0
+        else:
+            completeness += 20
+        if data.get('soft_skills') in ['', []]:
+            return 0
+        else:
+            completeness += 20
+        if data.get('work_experience') in ['', []]:
+            return 0
+        else:
+            completeness += 25
+
+        if data.get('additional_information') != '':
+            completeness += 10
+
+        return completeness
+
     def create_personal_ya_assistant(self):
         kb = KnowledgeBase(self)
 
@@ -324,6 +364,27 @@ class User(UserMixin, db.Model):
                 else:
                     status = {'name': 'прескрининг пройден', 'color': 'red'}
         return status
+
+    def get_ya_thread(self):
+        ya = YAGPT()
+        return ya.get_thread(self.current_ya_thread)
+
+    def get_ya_thread_messages(self):
+        ya = YAGPT()
+        return ya.get_messages_list(self.current_ya_thread)
+
+    def get_AI_profile(self):
+        from app.yagpt.prompts import get_profile_prompt
+        messages = self.get_ya_thread_messages()
+        history = []
+        for message in messages:
+            history.append(f"role: {message['result']['author']['role']}, message: {message['result']['content']['content'][0]['text']['content']}")
+
+        ya = YAGPT()
+        response = ya.completion(text = get_profile_prompt('\n'.join(history)))
+        if response:
+            return response
+        return None
 
 class Message(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)

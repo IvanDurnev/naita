@@ -13,7 +13,7 @@ from app.yagpt import prompts
 from app import redis_client, db
 import mimetypes
 from time import sleep
-
+from flask_login import current_user
 
 class YAGPT:
     def __init__(self):
@@ -108,7 +108,8 @@ class YAGPT:
         if model_uri is None:
             model_uri = f"gpt://{self.catalog_id}/yandexgpt/rc"
         if instruction is None:
-            instruction = prompts.KNOWLEDGE_BASE_ASSISTANT_INSTRUCTION
+            # instruction = prompts.KNOWLEDGE_BASE_ASSISTANT_INSTRUCTION
+            instruction = prompts.get_ya_personal_assistant_prompt(current_user)
         if prompt_truncation_options is None:
             prompt_truncation_options = {"maxPromptTokens": "100000"}
         if completion_options is None:
@@ -319,6 +320,42 @@ class YAGPT:
             user.current_ya_thread = response.json().get('id')
             db.session.commit()
             return response.json()
+        return None
+
+    def get_thread(self, thread_id):
+        url = f'https://rest-assistant.api.cloud.yandex.net/assistants/v1/threads/{thread_id}'
+        response = requests.get(url=url, headers=self.headers)
+        if os.environ.get('DEBUG'):
+            logging.info(response.status_code)
+            logging.info(response.json())
+        if response.status_code == 200:
+            return response.json()
+        return None
+
+    def get_messages_list(self, thread_id):
+        url = f'https://rest-assistant.api.cloud.yandex.net/assistants/v1/messages'
+        params = {
+            "threadId": thread_id
+        }
+        response = requests.get(url=url, headers=self.headers, params=params)
+        if os.environ.get('DEBUG'):
+            logging.info(f'get_messages_list status: {response.status_code}')
+            # logging.info(f'get_messages_list data: {response.__dict__}')
+
+        if response.status_code == 200:
+            # Преобразуем из байтов в строку
+            decoded_content = response.__dict__['_content'].decode('utf-8')
+            # Разбиваем строку на отдельные JSON-объекты
+            json_strings = decoded_content.split('\n')
+            # Преобразуем каждую строку в JSON-объект
+            json_objects = []
+            for json_string in json_strings:
+                if json_string.strip():  # Пропускаем пустые строки
+                    json_objects.append(json.loads(json_string))
+            # Выводим результат
+            # for obj in json_objects:
+            #     print(json.dumps(obj, indent=4, ensure_ascii=False))
+            return json_objects
         return None
 
     def create_file(
