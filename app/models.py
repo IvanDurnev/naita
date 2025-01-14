@@ -84,7 +84,7 @@ class User(UserMixin, db.Model):
         if os.path.exists(avatar_path):
             return url_for('static', filename=f'users/{str(self.id)}/avatar.jpg')
         else:
-            return url_for('static', filename=f'users/default/avatar_pixar.jpg')
+            return url_for('static', filename=f'users/default/ava.svg')
 
     def get_avatar_external(self):
         avatar_path = os.path.join(Config.STATIC_FOLDER, 'users', str(self.id), 'avatar.jpg')
